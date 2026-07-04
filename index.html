@@ -110,6 +110,15 @@ main{padding:26px 0 90px}
 .belt-head .count{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
 .belt-head .line{height:1px;flex:1;background:var(--border)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.concept-toprow{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between;margin-bottom:12px}
+.concept-toprow .searchbox{margin-bottom:0;flex:1 1 260px;max-width:none}
+.segmented{display:inline-flex;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden}
+.seg{font-family:var(--mono);font-size:12px;padding:9px 14px;background:transparent;color:var(--muted);border:none;border-right:1px solid var(--border)}
+.seg:last-child{border-right:none}
+.seg:hover{color:var(--ink)}
+.seg[aria-selected="true"]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.seg .segn{color:var(--faint);font-size:10.5px;margin-left:2px;font-variant-numeric:tabular-nums}
+.seg[aria-selected="true"] .segn{color:var(--accent)}
 .searchbox{position:relative;display:flex;align-items:center;margin-bottom:12px;max-width:440px}
 .searchbox .sicon{position:absolute;left:13px;color:var(--faint);font-size:15px;pointer-events:none}
 .searchbox input{width:100%;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--surface);
@@ -424,9 +433,16 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <h2>Learn the cluster the way it actually thinks.</h2>
       <p>Kubernetes is Greek for <em>helmsman</em> — the pilot who steers a ship of containers. Work through the belts below: each card opens a deep dive with the mental model, the reason it exists, the gotchas that bite people, and a real manifest. Then take the helm in the <b>Cluster Lab</b>.</p>
     </div>
-    <div class="searchbox">
-      <span class="sicon" aria-hidden="true">⌕</span>
-      <input id="conceptsearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search concepts — try &quot;oomkill&quot;, &quot;dns&quot;, &quot;scheduler&quot;…" aria-label="Search concepts">
+    <div class="concept-toprow">
+      <div class="searchbox">
+        <span class="sicon" aria-hidden="true">⌕</span>
+        <input id="conceptsearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search concepts — try &quot;oomkill&quot;, &quot;dns&quot;, &quot;scheduler&quot;…" aria-label="Search concepts">
+      </div>
+      <div class="segmented" id="statustoggle" role="tablist" aria-label="Filter by mastery">
+        <button class="seg" data-status="all" role="tab" aria-selected="true">All <span class="segn"></span></button>
+        <button class="seg" data-status="mastered" role="tab" aria-selected="false">Mastered <span class="segn"></span></button>
+        <button class="seg" data-status="notyet" role="tab" aria-selected="false">Not yet <span class="segn"></span></button>
+      </div>
     </div>
     <div class="filterbar" id="beltfilter" role="tablist" aria-label="Filter concepts by belt"></div>
     <div id="belts"></div>
@@ -1518,6 +1534,16 @@ function saveProgress(){try{localStorage.setItem("k8sdojo",JSON.stringify({read:
 
 let activeBelt=null;
 let searchQ="";
+let statusFilter="all";
+function matchStatus(c){return statusFilter==="all"?true:statusFilter==="mastered"?masterSet.has(c.id):!masterSet.has(c.id);}
+function renderStatusToggle(){
+  const counts={all:C.length,mastered:masterSet.size,notyet:C.length-masterSet.size};
+  $$("#statustoggle .seg").forEach(btn=>{
+    const s=btn.dataset.status;
+    btn.setAttribute("aria-selected",statusFilter===s?"true":"false");
+    const n=$(".segn",btn);if(n)n.textContent=counts[s];
+  });
+}
 function matchConcept(c,q){
   if(!q)return true;
   if(!c._hay)c._hay=[c.name,c.kind,c.tldr,c.underHood,c.analogy,c.why,(c.gotchas||[]).join(" "),(c.related||[]).join(" ")].join(" ").toLowerCase();
@@ -1540,13 +1566,14 @@ function renderBeltFilter(){
 }
 function renderConcepts(){
   renderBeltFilter();
+  renderStatusToggle();
   const wrap=$("#belts");wrap.innerHTML="";
   let shown=0;
   BELTS.forEach(b=>{
     if(activeBelt&&b.id!==activeBelt)return;
     const fullList=C.filter(c=>c.belt===b.id);
     if(!fullList.length)return;
-    const list=fullList.filter(c=>matchConcept(c,searchQ));
+    const list=fullList.filter(c=>matchConcept(c,searchQ)&&matchStatus(c));
     if(!list.length)return;
     shown+=list.length;
     const head=el("div","belt-head");
@@ -1571,14 +1598,18 @@ function renderConcepts(){
     wrap.appendChild(grid);
   });
   if(!shown){
+    const bits=[];
+    if(searchQ)bits.push(`“${escapeHtml(searchQ)}”`);
+    if(activeBelt)bits.push(`${activeBelt} belt`);
+    if(statusFilter!=="all")bits.push(statusFilter==="mastered"?"mastered":"not-yet-mastered");
     const ne=el("div","noresults");
-    ne.innerHTML=`No concepts match <b>${escapeHtml(searchQ)}</b>${activeBelt?` in the ${activeBelt} belt`:""}. <button class="linkbtn" id="clrsearch">clear filters</button>`;
+    ne.innerHTML=`No concepts match ${bits.length?"<b>"+bits.join("</b> · <b>")+"</b>":"the current filters"}. <button class="linkbtn" id="clrsearch">clear filters</button>`;
     wrap.appendChild(ne);
     const cb=$("#clrsearch");if(cb)cb.addEventListener("click",clearConceptFilters);
   }
   updateRank();
 }
-function clearConceptFilters(){searchQ="";activeBelt=null;const si=$("#conceptsearch");if(si)si.value="";renderConcepts();}
+function clearConceptFilters(){searchQ="";activeBelt=null;statusFilter="all";const si=$("#conceptsearch");if(si)si.value="";renderConcepts();}
 
 const sheet=$("#sheet"),scrim=$("#scrim"),sheetin=$("#sheetin");
 function highlightYaml(y){
@@ -1604,7 +1635,7 @@ function buildCheck(c){
       wrap.dataset.done="1";
       Array.from(opts.children).forEach((cb,ci)=>{cb.disabled=true;if(ci===c.check.a)cb.classList.add("correct");if(ci===i&&i!==c.check.a)cb.classList.add("wrong");});
       ex.classList.add("show");
-      if(i===c.check.a&&!masterSet.has(c.id)){masterSet.add(c.id);saveProgress();updateRank();}
+      if(i===c.check.a&&!masterSet.has(c.id)){masterSet.add(c.id);saveProgress();updateRank();renderConcepts();}
     });
     opts.appendChild(b);
   });
@@ -1884,6 +1915,7 @@ themeBtn.addEventListener("click",()=>{
 /* ============================ BOOT ============================ */
 $("#conceptsearch").addEventListener("input",e=>{searchQ=e.target.value.trim().toLowerCase();renderConcepts();});
 $("#conceptsearch").addEventListener("keydown",e=>{if(e.key==="Escape"){e.stopPropagation();e.target.value="";searchQ="";renderConcepts();}});
+$$("#statustoggle .seg").forEach(btn=>btn.addEventListener("click",()=>{statusFilter=btn.dataset.status;renderConcepts();}));
 renderConcepts();
 renderTrials();
 renderRBAC();
