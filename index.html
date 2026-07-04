@@ -110,6 +110,11 @@ main{padding:26px 0 90px}
 .belt-head .count{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
 .belt-head .line{height:1px;flex:1;background:var(--border)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.nextbtn{margin-top:16px;font-family:var(--mono);font-size:13px;padding:10px 16px;border-radius:10px;
+  border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);transition:.15s}
+.nextbtn:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 24%,transparent);transform:translateY(-1px)}
+.nextbtn:disabled{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,var(--border));background:color-mix(in srgb,var(--good) 10%,transparent);cursor:default}
+.nextbtn b{font-weight:600}
 .concept-toprow{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between;margin-bottom:12px}
 .concept-toprow .searchbox{margin-bottom:0;flex:1 1 260px;max-width:none}
 .segmented{display:inline-flex;border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden}
@@ -432,6 +437,7 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <div class="eyebrow">Kubernetes · from helmsman to black belt</div>
       <h2>Learn the cluster the way it actually thinks.</h2>
       <p>Kubernetes is Greek for <em>helmsman</em> — the pilot who steers a ship of containers. Work through the belts below: each card opens a deep dive with the mental model, the reason it exists, the gotchas that bite people, and a real manifest. Then take the helm in the <b>Cluster Lab</b>.</p>
+      <button class="nextbtn" id="nextbtn">▶ Study next unmastered</button>
     </div>
     <div class="concept-toprow">
       <div class="searchbox">
@@ -1536,6 +1542,16 @@ let activeBelt=null;
 let searchQ="";
 let statusFilter="all";
 function matchStatus(c){return statusFilter==="all"?true:statusFilter==="mastered"?masterSet.has(c.id):!masterSet.has(c.id);}
+function nextUnmastered(){
+  const ordered=BELTS.flatMap(b=>(!activeBelt||activeBelt===b.id)?C.filter(c=>c.belt===b.id):[]);
+  return ordered.find(c=>!masterSet.has(c.id))||null;
+}
+function updateNextBtn(){
+  const btn=$("#nextbtn");if(!btn)return;
+  const nx=nextUnmastered();
+  if(nx){btn.disabled=false;btn.dataset.id=nx.id;btn.innerHTML=`▶ Study next: <b>${escapeHtml(nx.name)}</b>`;}
+  else{btn.disabled=true;btn.dataset.id="";btn.innerHTML=`✓ All ${activeBelt?activeBelt+" belt ":""}concepts mastered`;}
+}
 function renderStatusToggle(){
   const counts={all:C.length,mastered:masterSet.size,notyet:C.length-masterSet.size};
   $$("#statustoggle .seg").forEach(btn=>{
@@ -1567,6 +1583,7 @@ function renderBeltFilter(){
 function renderConcepts(){
   renderBeltFilter();
   renderStatusToggle();
+  updateNextBtn();
   const wrap=$("#belts");wrap.innerHTML="";
   let shown=0;
   BELTS.forEach(b=>{
@@ -1916,6 +1933,7 @@ themeBtn.addEventListener("click",()=>{
 $("#conceptsearch").addEventListener("input",e=>{searchQ=e.target.value.trim().toLowerCase();renderConcepts();});
 $("#conceptsearch").addEventListener("keydown",e=>{if(e.key==="Escape"){e.stopPropagation();e.target.value="";searchQ="";renderConcepts();}});
 $$("#statustoggle .seg").forEach(btn=>btn.addEventListener("click",()=>{statusFilter=btn.dataset.status;renderConcepts();}));
+$("#nextbtn").addEventListener("click",()=>{const id=$("#nextbtn").dataset.id;if(id)openConcept(id);});
 renderConcepts();
 renderTrials();
 renderRBAC();
