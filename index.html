@@ -331,6 +331,11 @@ pre .vv{color:var(--accent)}
 .tiprow{display:flex;gap:9px;font-size:13px;color:var(--muted);padding:5px 0;line-height:1.5}
 .tiprow::before{content:"▸";color:var(--accent);flex:none}
 .tiprow b{color:var(--ink);font-family:var(--mono);font-weight:400}
+.wlead{color:var(--muted);font-size:14px;margin:6px 0 0}
+.whint{color:var(--muted);font-size:12.5px;margin:18px 0 0}
+.wcta{margin-top:16px;width:100%;font-family:var(--mono);font-size:14px;padding:12px 16px;border-radius:11px;
+  border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);transition:.15s}
+.wcta:hover{background:color-mix(in srgb,var(--accent) 26%,transparent);transform:translateY(-1px)}
 footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color:var(--faint);
   font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 /* ---- concept depth blocks ---- */
@@ -590,6 +595,22 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <div class="tiprow">Pass a concept's <b>Test yourself</b> quiz to master it and raise your belt.</div>
       <div class="tiprow">Use <b>Study next</b> to walk the curriculum in belt order, or the <b>RBAC</b> tab to probe permissions.</div>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="welcomeoverlay" aria-hidden="true">
+  <div class="modal welcome" role="dialog" aria-modal="true" aria-label="Welcome to K8s Dojo">
+    <button class="iconbtn close" id="welcomeclose" aria-label="Close">✕</button>
+    <span class="eyebrow">Welcome aboard</span>
+    <h2>Steer your first cluster</h2>
+    <p class="wlead">K8s Dojo teaches Kubernetes the way it actually thinks — by letting you drive it. Three ways in:</p>
+    <div class="ksec" style="margin-top:14px">
+      <div class="tiprow"><b>Concepts</b> — 32 belt-ranked deep dives, each with the real mechanism, the gotchas, and a quiz to master it.</div>
+      <div class="tiprow"><b>Cluster Lab</b> — a live cluster and a simulated kubectl that reconciles as you type. Delete a pod, watch it heal.</div>
+      <div class="tiprow"><b>Trials &amp; RBAC</b> — fix broken manifests, and probe who-can-do-what with a can-i simulator.</div>
+    </div>
+    <p class="whint">Press <kbd>?</kbd> anytime for shortcuts and tips.</p>
+    <button class="wcta" id="welcomecta">Enter the dojo →</button>
   </div>
 </div>
 
@@ -1756,7 +1777,7 @@ function openConcept(id){
 }
 function closeSheet(){scrim.classList.remove("on");sheet.classList.remove("on");sheet.setAttribute("aria-hidden","true");}
 scrim.addEventListener("click",closeSheet);
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeHelp();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeHelp();closeWelcome();}});
 document.addEventListener("keydown",e=>{
   if(e.key!=="/"||e.metaKey||e.ctrlKey||e.altKey)return;
   const t=e.target,tag=(t.tagName||"").toLowerCase();
@@ -1776,6 +1797,15 @@ document.addEventListener("keydown",e=>{
 $("#helpbtn").addEventListener("click",openHelp);
 $("#helpclose").addEventListener("click",closeHelp);
 $("#helpoverlay").addEventListener("click",e=>{if(e.target===$("#helpoverlay"))closeHelp();});
+
+function hasOnboarded(){try{return localStorage.getItem("k8sdojo_seen")==="1";}catch(e){return false;}}
+function markOnboarded(){try{localStorage.setItem("k8sdojo_seen","1");}catch(e){}}
+function openWelcome(){const o=$("#welcomeoverlay");if(o){o.classList.add("on");o.setAttribute("aria-hidden","false");}}
+function closeWelcome(){const o=$("#welcomeoverlay");if(o&&o.classList.contains("on")){o.classList.remove("on");o.setAttribute("aria-hidden","true");markOnboarded();}}
+$("#welcomeclose").addEventListener("click",closeWelcome);
+$("#welcomecta").addEventListener("click",closeWelcome);
+$("#welcomeoverlay").addEventListener("click",e=>{if(e.target===$("#welcomeoverlay"))closeWelcome();});
+if(!hasOnboarded())setTimeout(openWelcome,450);
 
 /* ============================ TRIALS UI ============================ */
 let trialScore=0;const answered=new Set();
