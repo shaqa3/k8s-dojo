@@ -1,0 +1,1328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K8s Dojo — the Kubernetes training bridge</title>
+<meta name="description" content="An interactive Kubernetes dojo: belt-ranked deep-dive explainers, a live self-reconciling cluster diagram, a simulated kubectl terminal, and trials.">
+<style>
+:root{
+  --ground:#0a1017; --surface:#111a24; --surface-2:#16222e; --surface-3:#1c2b39;
+  --border:#22323f; --border-strong:#2e4353;
+  --ink:#dce6ee; --muted:#8199ab; --faint:#5c7183;
+  --accent:#2fd4c4; --accent-dim:#1f8f86; --blue:#4d8bf0; --blue-dim:#2c5aa8;
+  --good:#46d19e; --warn:#f5b544; --crit:#ff6b6b;
+  --white-belt:#e8edf1; --yellow-belt:#f5d24a; --orange-belt:#f2953f;
+  --green-belt:#46d19e; --blue-belt:#4d8bf0; --brown-belt:#b07a52; --black-belt:#0d141b;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --shadow:0 10px 40px -12px rgba(0,0,0,.6);
+  --r:12px;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --ground:#eef3f7; --surface:#ffffff; --surface-2:#f2f6fa; --surface-3:#e7eef4;
+    --border:#d6e0e8; --border-strong:#c2d0db;
+    --ink:#12202b; --muted:#54697a; --faint:#8497a6;
+    --accent:#0f9e92; --accent-dim:#7fd6cd; --blue:#2f6fdc; --blue-dim:#9cbcf0;
+    --good:#1f9e73; --warn:#c9860f; --crit:#d94848;
+    --black-belt:#12202b; --shadow:0 10px 34px -14px rgba(20,40,60,.28);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0a1017; --surface:#111a24; --surface-2:#16222e; --surface-3:#1c2b39;
+  --border:#22323f; --border-strong:#2e4353;
+  --ink:#dce6ee; --muted:#8199ab; --faint:#5c7183;
+  --accent:#2fd4c4; --accent-dim:#1f8f86; --blue:#4d8bf0; --blue-dim:#2c5aa8;
+  --good:#46d19e; --warn:#f5b544; --crit:#ff6b6b; --black-belt:#0d141b;
+  --shadow:0 10px 40px -12px rgba(0,0,0,.6);
+}
+:root[data-theme="light"]{
+  --ground:#eef3f7; --surface:#ffffff; --surface-2:#f2f6fa; --surface-3:#e7eef4;
+  --border:#d6e0e8; --border-strong:#c2d0db;
+  --ink:#12202b; --muted:#54697a; --faint:#8497a6;
+  --accent:#0f9e92; --accent-dim:#7fd6cd; --blue:#2f6fdc; --blue-dim:#9cbcf0;
+  --good:#1f9e73; --warn:#c9860f; --crit:#d94848; --black-belt:#12202b;
+  --shadow:0 10px 34px -14px rgba(20,40,60,.28);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:var(--accent);color:var(--ground)}
+a{color:var(--accent);text-decoration:none}
+h1,h2,h3,h4{text-wrap:balance;margin:0}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono)}
+.eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.18em;
+  font-size:11px;color:var(--muted)}
+
+/* ---- shell ---- */
+.wrap{max-width:1240px;margin:0 auto;padding:0 22px}
+header.top{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--ground) 86%,transparent);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.top-inner{display:flex;align-items:center;gap:18px;padding:12px 0}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.helm{width:38px;height:38px;flex:none}
+.brand h1{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.brand h1 b{color:var(--accent);font-weight:600}
+.brand .sub{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase}
+.rank-wrap{margin-left:auto;display:flex;align-items:center;gap:14px}
+.rankchip{display:flex;align-items:center;gap:9px;padding:6px 12px;border:1px solid var(--border);
+  border-radius:999px;background:var(--surface)}
+.rankdot{width:13px;height:13px;border-radius:50%;border:2px solid var(--border-strong)}
+.rankchip .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.06em}
+.rankchip .lbl b{color:var(--accent)}
+.prog{width:120px;height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--accent));width:0;transition:width .5s ease}
+.iconbtn{width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--surface);
+  color:var(--ink);display:grid;place-items:center;font-size:15px}
+.iconbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* tabs */
+nav.tabs{display:flex;gap:4px;padding:8px 0 0;flex-wrap:wrap}
+.tab{font-family:var(--mono);font-size:13px;letter-spacing:.02em;padding:9px 16px;border:1px solid transparent;
+  border-bottom:none;border-radius:9px 9px 0 0;color:var(--muted);background:transparent;position:relative;top:1px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--surface);border-color:var(--border)}
+.tab[aria-selected="true"]::after{content:"";position:absolute;left:14px;right:14px;top:8px;height:2px;
+  background:var(--accent);border-radius:2px}
+.tab .num{color:var(--faint);margin-right:7px;font-size:11px}
+
+main{padding:26px 0 90px}
+.panel{display:none;animation:fade .35s ease}
+.panel.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* intro / hero strip */
+.intro{border:1px solid var(--border);border-radius:var(--r);background:
+  radial-gradient(120% 140% at 90% -20%,color-mix(in srgb,var(--blue) 16%,transparent),transparent 55%),
+  var(--surface);padding:22px 24px;margin-bottom:26px;position:relative;overflow:hidden}
+.intro h2{font-size:22px;letter-spacing:-.01em;margin-bottom:6px}
+.intro p{color:var(--muted);max-width:66ch;font-size:14.5px}
+.intro .sonar{position:absolute;right:-40px;top:-40px;width:200px;height:200px;pointer-events:none;opacity:.5}
+
+/* ---- concepts ---- */
+.belt-head{display:flex;align-items:center;gap:12px;margin:30px 0 14px}
+.belt-head:first-child{margin-top:6px}
+.belt-head .bdot{width:26px;height:26px;border-radius:7px;flex:none;border:1px solid var(--border-strong)}
+.belt-head h3{font-family:var(--mono);font-size:14px;letter-spacing:.05em;text-transform:uppercase}
+.belt-head .count{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
+.belt-head .line{height:1px;flex:1;background:var(--border)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.ccard{text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:11px;
+  padding:15px 15px 14px;transition:.18s;position:relative;overflow:hidden;color:var(--ink)}
+.ccard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+.ccard .k{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase}
+.ccard h4{font-size:16px;margin:5px 0 6px;letter-spacing:-.01em}
+.ccard p{font-size:12.5px;color:var(--muted);margin:0;min-height:34px}
+.ccard .done{position:absolute;top:12px;right:12px;color:var(--good);font-size:13px;opacity:0;transition:.2s}
+.ccard.read .done{opacity:1}
+.ccard .beltbar{position:absolute;left:0;top:0;bottom:0;width:3px}
+
+/* slide-over */
+.scrim{position:fixed;inset:0;background:rgba(4,8,12,.62);backdrop-filter:blur(3px);z-index:60;opacity:0;
+  pointer-events:none;transition:.25s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:min(620px,94vw);background:var(--surface);z-index:61;
+  border-left:1px solid var(--border-strong);transform:translateX(102%);transition:transform .32s cubic-bezier(.4,0,.2,1);
+  overflow-y:auto;box-shadow:var(--shadow)}
+.sheet.on{transform:none}
+.sheet-in{padding:26px 30px 60px}
+.sheet .close{position:sticky;top:0;float:right;margin:-6px -8px 0 0}
+.sheet .belttag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+.sheet .belttag .d{width:11px;height:11px;border-radius:50%}
+.sheet h2{font-size:27px;letter-spacing:-.02em;margin-bottom:4px}
+.sheet .tl{font-size:15px;color:var(--ink);border-left:2px solid var(--accent);padding-left:14px;margin:16px 0 22px}
+.block{margin:20px 0}
+.block .h{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--accent);
+  margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.block .h::before{content:"";width:14px;height:1px;background:var(--accent)}
+.block p{font-size:14px;color:var(--ink);margin:0}
+.analogy{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:14px}
+.analogy .q{font-family:var(--mono);color:var(--blue);font-size:11px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px}
+ul.gotchas{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:9px}
+ul.gotchas li{font-size:13.5px;padding-left:24px;position:relative;color:var(--ink)}
+ul.gotchas li::before{content:"!";position:absolute;left:0;top:0;width:17px;height:17px;border-radius:5px;
+  background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--warn);font-family:var(--mono);
+  font-size:11px;font-weight:700;display:grid;place-items:center}
+pre{background:var(--ground);border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow-x:auto;
+  font-family:var(--mono);font-size:12.5px;line-height:1.65;margin:0}
+pre .c{color:var(--faint)}
+pre .kk{color:var(--blue)}
+pre .vv{color:var(--accent)}
+.cmds{display:flex;flex-direction:column;gap:7px}
+.cmds code{font-family:var(--mono);font-size:12.5px;background:var(--ground);border:1px solid var(--border);
+  border-radius:7px;padding:8px 11px;display:block;color:var(--ink)}
+.cmds code b{color:var(--accent);font-weight:400}
+.trybtn{margin-top:10px;font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:8px;
+  border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)}
+.trybtn:hover{background:color-mix(in srgb,var(--accent) 20%,transparent)}
+
+/* ---- cluster lab ---- */
+.lab{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;align-items:start}
+@media (max-width:960px){.lab{grid-template-columns:1fr}}
+.card{border:1px solid var(--border);border-radius:var(--r);background:var(--surface)}
+.card-h{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h .t{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.card-h .t b{color:var(--ink);font-weight:600}
+.card-h .live{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--good);display:flex;align-items:center;gap:6px}
+.card-h .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--good);
+  box-shadow:0 0 0 0 var(--good);animation:ping 1.8s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 60%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+.cp{margin:14px;padding:12px;border:1px dashed var(--border-strong);border-radius:10px;
+  background:color-mix(in srgb,var(--blue) 7%,transparent)}
+.cp .cpt{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:9px}
+.cp-comps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:520px){.cp-comps{grid-template-columns:repeat(2,1fr)}}
+.comp{border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:9px 8px;text-align:center;
+  transition:.15s;color:var(--ink)}
+.comp:hover{border-color:var(--blue);transform:translateY(-1px)}
+.comp .cn{font-family:var(--mono);font-size:11px;font-weight:600}
+.comp .cd{font-size:9.5px;color:var(--muted);margin-top:2px}
+.comp .pulse{width:6px;height:6px;border-radius:50%;background:var(--blue);margin:6px auto 0;animation:beat 2.4s infinite}
+@keyframes beat{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:1;transform:scale(1.5)}}
+
+.nodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:0 14px 14px}
+.node{border:1px solid var(--border);border-radius:10px;background:var(--surface-2);padding:10px;min-height:120px}
+.node.cordoned{opacity:.6;border-style:dashed;border-color:var(--warn)}
+.node .nh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.node .nn{font-family:var(--mono);font-size:11px;font-weight:600}
+.node .nn .cord{color:var(--warn);font-size:9px;margin-left:4px}
+.node .agents{font-family:var(--mono);font-size:8px;color:var(--faint);letter-spacing:.04em}
+.cpubar{height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden;margin-bottom:9px}
+.cpubar i{display:block;height:100%;background:var(--blue);transition:width .5s}
+.pods{display:flex;flex-wrap:wrap;gap:5px}
+.pod{font-family:var(--mono);font-size:9px;padding:4px 6px;border-radius:5px;border:1px solid var(--border);
+  background:var(--surface);display:flex;align-items:center;gap:4px;animation:popin .3s ease}
+@keyframes popin{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+.pod .st{width:6px;height:6px;border-radius:50%;flex:none}
+.pod.Running .st{background:var(--good)}
+.pod.ContainerCreating .st{background:var(--warn);animation:beat 1s infinite}
+.pod.Pending .st{background:var(--faint)}
+.pod.Terminating{opacity:.4;text-decoration:line-through}
+.pod.Terminating .st{background:var(--muted)}
+.pod.CrashLoopBackOff .st,.pod.ImagePullBackOff .st{background:var(--crit);animation:beat .7s infinite}
+.pod.CrashLoopBackOff,.pod.ImagePullBackOff{border-color:color-mix(in srgb,var(--crit) 50%,var(--border))}
+.pod:hover{border-color:var(--accent)}
+.node .empty{font-family:var(--mono);font-size:9px;color:var(--faint);padding:8px 2px}
+
+.summary{display:flex;gap:8px;padding:0 14px 14px;flex-wrap:wrap}
+.pill{font-family:var(--mono);font-size:10px;padding:5px 9px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--muted)}
+.pill b{color:var(--ink)}
+.legend{display:flex;gap:12px;padding:10px 16px;border-top:1px solid var(--border);flex-wrap:wrap}
+.legend span{font-family:var(--mono);font-size:9.5px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.legend i{width:7px;height:7px;border-radius:50%}
+
+.events{padding:8px 14px 12px;max-height:120px;overflow-y:auto;font-family:var(--mono);font-size:10.5px}
+.events .ev{padding:2px 0;color:var(--muted);display:flex;gap:8px}
+.events .ev time{color:var(--faint);flex:none}
+.events .ev.warn{color:var(--warn)}
+.events .ev.crit{color:var(--crit)}
+.events .ev.good{color:var(--good)}
+
+/* terminal */
+.term{background:var(--ground);border-radius:0 0 var(--r) var(--r);font-family:var(--mono);font-size:12.5px;
+  height:520px;display:flex;flex-direction:column}
+.term-out{flex:1;overflow-y:auto;padding:14px 16px;line-height:1.55}
+.term-out .line{white-space:pre-wrap;word-break:break-word}
+.term-out .cmd{color:var(--ink)}
+.term-out .cmd .pmt{color:var(--accent)}
+.term-out .ok{color:var(--good)}
+.term-out .warnl{color:var(--warn)}
+.term-out .err{color:var(--crit)}
+.term-out .dim{color:var(--faint)}
+.term-out .info{color:var(--blue)}
+.term-out .tbl{color:var(--muted)}
+.term-out .tbl b{color:var(--ink);font-weight:400}
+.term-in{display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);padding:10px 14px}
+.term-in .pmt{color:var(--accent);flex:none}
+.term-in input{flex:1;background:transparent;border:none;color:var(--ink);font-family:var(--mono);font-size:12.5px;outline:none}
+.term-in input::placeholder{color:var(--faint)}
+.chips{display:flex;gap:6px;padding:8px 14px 12px;flex-wrap:wrap;background:var(--ground);border-radius:0 0 var(--r) var(--r)}
+.chip{font-family:var(--mono);font-size:10.5px;padding:5px 9px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface);color:var(--muted)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---- trials ---- */
+.trials{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:820px){.trials{grid-template-columns:1fr}}
+.score{display:flex;align-items:center;gap:16px;border:1px solid var(--border);border-radius:var(--r);
+  background:var(--surface);padding:16px 20px;margin-bottom:18px}
+.score .big{font-family:var(--mono);font-size:30px;color:var(--accent);font-variant-numeric:tabular-nums}
+.score .big span{color:var(--faint);font-size:18px}
+.score p{margin:0;font-size:13px;color:var(--muted)}
+.score .badges{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badge{font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);color:var(--faint)}
+.badge.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.q{border:1px solid var(--border);border-radius:var(--r);background:var(--surface);padding:18px 20px;margin-bottom:14px}
+.q .qk{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);display:flex;justify-content:space-between}
+.q .qk .kind{color:var(--blue)}
+.q h4{font-size:15.5px;margin:8px 0 4px;letter-spacing:-.01em}
+.q pre{margin:10px 0}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.opt{text-align:left;border:1px solid var(--border);background:var(--surface-2);border-radius:9px;padding:11px 13px;
+  font-size:13.5px;color:var(--ink);transition:.14s;display:flex;gap:10px;align-items:flex-start}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt .mk{font-family:var(--mono);font-size:11px;color:var(--faint);flex:none;margin-top:1px}
+.opt.correct{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.opt.wrong{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.opt:disabled{cursor:default}
+.expl{margin-top:12px;font-size:13px;color:var(--muted);border-left:2px solid var(--good);padding-left:12px;display:none}
+.expl.show{display:block;animation:fade .3s}
+.expl b{color:var(--ink)}
+
+footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color:var(--faint);
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="top-inner">
+      <div class="brand">
+        <svg class="helm" viewBox="0 0 100 100" aria-hidden="true">
+          <g fill="none" stroke="var(--accent)" stroke-width="4">
+            <circle cx="50" cy="50" r="20"/>
+            <circle cx="50" cy="50" r="7" fill="var(--accent)" stroke="none"/>
+            <g stroke-width="4">
+              <line x1="50" y1="30" x2="50" y2="8"/><line x1="50" y1="70" x2="50" y2="92"/>
+              <line x1="30" y1="50" x2="8" y2="50"/><line x1="70" y1="50" x2="92" y2="50"/>
+              <line x1="64" y1="36" x2="80" y2="20"/><line x1="36" y1="64" x2="20" y2="80"/>
+              <line x1="64" y1="64" x2="80" y2="80"/><line x1="36" y1="36" x2="20" y2="20"/>
+            </g>
+            <g fill="var(--accent)" stroke="none">
+              <circle cx="50" cy="8" r="5"/><circle cx="50" cy="92" r="5"/>
+              <circle cx="8" cy="50" r="5"/><circle cx="92" cy="50" r="5"/>
+              <circle cx="80" cy="20" r="4"/><circle cx="20" cy="80" r="4"/>
+              <circle cx="80" cy="80" r="4"/><circle cx="20" cy="20" r="4"/>
+            </g>
+          </g>
+        </svg>
+        <div>
+          <h1><b>K8s</b> Dojo</h1>
+          <div class="sub">The Kubernetes training bridge</div>
+        </div>
+      </div>
+      <div class="rank-wrap">
+        <div class="rankchip" title="Your belt rank rises as you study concepts and pass trials">
+          <span class="rankdot" id="rankdot"></span>
+          <span class="lbl"><b id="rankname">White</b> belt</span>
+        </div>
+        <div class="prog" title="Mastery"><i id="progbar"></i></div>
+        <button class="iconbtn" id="themebtn" aria-label="Toggle light and dark theme" title="Toggle theme">◑</button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" aria-selected="true" data-tab="concepts"><span class="num">01</span>Concepts</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="lab"><span class="num">02</span>Cluster Lab</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="trials"><span class="num">03</span>Trials</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- CONCEPTS -->
+  <section class="panel on" id="p-concepts" role="tabpanel">
+    <div class="intro">
+      <canvas class="sonar" id="sonar" width="200" height="200"></canvas>
+      <div class="eyebrow">Kubernetes · from helmsman to black belt</div>
+      <h2>Learn the cluster the way it actually thinks.</h2>
+      <p>Kubernetes is Greek for <em>helmsman</em> — the pilot who steers a ship of containers. Work through the belts below: each card opens a deep dive with the mental model, the reason it exists, the gotchas that bite people, and a real manifest. Then take the helm in the <b>Cluster Lab</b>.</p>
+    </div>
+    <div id="belts"></div>
+  </section>
+
+  <!-- CLUSTER LAB -->
+  <section class="panel" id="p-lab" role="tabpanel">
+    <div class="intro">
+      <div class="eyebrow">Live cluster · shared reconcile loop</div>
+      <h2>Take the helm.</h2>
+      <p>The diagram and the terminal share one living cluster. Type a command and watch Kubernetes <em>reconcile</em> — the scheduler places pods on nodes, controllers heal what you delete. This is the control loop made visible. Try <code class="mono" style="color:var(--accent)">kubectl delete pod &lt;name&gt;</code> and watch it come back.</p>
+    </div>
+    <div class="lab">
+      <div class="card">
+        <div class="card-h"><span class="t"><b>cluster</b> · dojo-01</span><span class="live">reconciling</span></div>
+        <div class="cp">
+          <div class="cpt">control plane</div>
+          <div class="cp-comps">
+            <button class="comp" data-concept="apiserver"><div class="cn">api-server</div><div class="cd">the front door</div><div class="pulse"></div></button>
+            <button class="comp" data-concept="etcd"><div class="cn">etcd</div><div class="cd">source of truth</div><div class="pulse" style="animation-delay:.4s"></div></button>
+            <button class="comp" data-concept="scheduler"><div class="cn">scheduler</div><div class="cd">places pods</div><div class="pulse" style="animation-delay:.8s"></div></button>
+            <button class="comp" data-concept="controller"><div class="cn">controllers</div><div class="cd">reconcile</div><div class="pulse" style="animation-delay:1.2s"></div></button>
+          </div>
+        </div>
+        <div class="nodes" id="nodes"></div>
+        <div class="summary" id="summary"></div>
+        <div class="legend">
+          <span><i style="background:var(--good)"></i>Running</span>
+          <span><i style="background:var(--warn)"></i>ContainerCreating</span>
+          <span><i style="background:var(--faint)"></i>Pending</span>
+          <span><i style="background:var(--crit)"></i>CrashLoop / ImagePull</span>
+        </div>
+        <div class="events" id="events"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t"><b>kubectl</b> · simulated</span><span class="live" style="color:var(--accent)">v1.30</span></div>
+        <div class="term">
+          <div class="term-out" id="termout"></div>
+          <form class="term-in" id="termform">
+            <span class="pmt">❯</span>
+            <input id="terminput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="type a kubectl command…  (try: help)"/>
+          </form>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRIALS -->
+  <section class="panel" id="p-trials" role="tabpanel">
+    <div class="intro">
+      <div class="eyebrow">Trials · prove your mastery</div>
+      <h2>Spot the bug. Know the why.</h2>
+      <p>Real questions and broken manifests pulled from the mistakes engineers actually make. Answer to reveal the reasoning — every point raises your belt.</p>
+    </div>
+    <div class="score">
+      <div class="big"><span id="scoreN">0</span><span>/<span id="scoreT">0</span></span></div>
+      <p id="scoreMsg">Answer the trials below. Correct answers count toward your rank.</p>
+      <div class="badges" id="badges"></div>
+    </div>
+    <div class="trials" id="trials"></div>
+  </section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" aria-hidden="true"><div class="sheet-in" id="sheetin"></div></aside>
+
+<footer class="wrap">K8s Dojo · a training bridge for Kubernetes · steer the ship, don't just read the manual</footer>
+
+<script>
+"use strict";
+/* ============================ CONCEPT LIBRARY ============================ */
+const BELTS=[
+  {id:"white",name:"White",color:"#e8edf1",desc:"Foundations"},
+  {id:"yellow",name:"Yellow",color:"#f5d24a",desc:"Workloads"},
+  {id:"orange",name:"Orange",color:"#f2953f",desc:"Networking"},
+  {id:"green",name:"Green",color:"#46d19e",desc:"Config & State"},
+  {id:"blue",name:"Blue",color:"#4d8bf0",desc:"Control plane"},
+  {id:"brown",name:"Brown",color:"#b07a52",desc:"Advanced workloads"},
+  {id:"black",name:"Black",color:"#c9d4dd",desc:"Production mastery"},
+];
+const C=[
+{id:"container",belt:"white",name:"Container",kind:"runtime",
+ tldr:"A container is just a normal Linux process, boxed in by kernel features so it thinks it has the machine to itself.",
+ analogy:"Not a tiny VM — a VM boots its own kernel and hardware. A container is your app wearing a costume: same kernel underneath, but namespaces hide the rest of the system and cgroups cap how much it can eat.",
+ why:"Ship the app and every dependency as one immutable image, so 'works on my machine' becomes 'works everywhere the kernel runs'. Fast to start, cheap to pack many per host.",
+ gotchas:["A container is not a security boundary as strong as a VM — it shares the host kernel.","The image is immutable; anything written at runtime vanishes when the container restarts unless it's on a volume.","One container should run one main process. No init system means zombie processes can pile up."],
+ yaml:"# containers are described *inside* a Pod, never alone:\nimage: nginx:1.27\nports:\n  - containerPort: 80",
+ cmds:["kubectl run web --image=nginx"]},
+
+{id:"pod",belt:"white",name:"Pod",kind:"smallest unit",
+ tldr:"The Pod is the atom of Kubernetes: one or more containers that share a network identity and storage, always scheduled together on one node.",
+ analogy:"Think of a pod as a single logical host. Containers inside it are like processes on that host — they reach each other over localhost and can share files. Kubernetes never schedules half a pod.",
+ why:"Some helpers must live right next to the app (a log shipper, a proxy sidecar). Bundling them in a pod guarantees co-location, a shared IP, and a shared lifecycle.",
+ gotchas:["You rarely create bare pods — they don't self-heal. Use a Deployment so a controller recreates them.","Every container in the pod shares ONE IP. Two containers can't both bind port 80.","A pod's IP is ephemeral; it changes on every restart. Never hardcode it — use a Service."],
+ yaml:"apiVersion: v1\nkind: Pod\nmetadata:\n  name: web\n  labels: {app: web}\nspec:\n  containers:\n    - name: nginx\n      image: nginx:1.27",
+ cmds:["kubectl run web --image=nginx","kubectl get pods","kubectl describe pod web"]},
+
+{id:"namespace",belt:"white",name:"Namespace",kind:"tenancy",
+ tldr:"A namespace is a virtual cluster inside your cluster — a scope for names, quotas, and access.",
+ analogy:"Like folders on a shared drive. 'web' can exist in both `team-a` and `team-b` without colliding. `kube-system` is the folder the cluster's own machinery lives in.",
+ why:"Separate teams, environments, or apps on one physical cluster; apply resource quotas and RBAC per boundary.",
+ gotchas:["Names are unique per namespace, not per cluster.","Cross-namespace Service DNS needs the full name: `svc.other-ns.svc.cluster.local`.","Deleting a namespace deletes everything in it — irreversibly."],
+ yaml:"apiVersion: v1\nkind: Namespace\nmetadata:\n  name: team-a",
+ cmds:["kubectl get pods -A","kubectl get pods -n kube-system"]},
+
+{id:"replicaset",belt:"yellow",name:"ReplicaSet",kind:"controller",
+ tldr:"A ReplicaSet has one job: keep exactly N copies of a pod running. Fewer than N? It makes more. More than N? It kills some.",
+ analogy:"A thermostat for pods. You set the target (replicas: 3); the controller constantly compares reality to the target and nudges reality until they match. This never stops.",
+ why:"It's the mechanism behind self-healing and horizontal scale. Delete a pod and the ReplicaSet notices the gap and fills it within seconds.",
+ gotchas:["You almost never manage ReplicaSets directly — a Deployment creates and versions them for you.","It matches pods by label selector. A stray pod with the same labels gets 'adopted' — or deleted.","Changing the pod template on a ReplicaSet does NOT restart existing pods. That's why Deployments exist."],
+ yaml:"apiVersion: apps/v1\nkind: ReplicaSet\nmetadata: {name: web}\nspec:\n  replicas: 3\n  selector:\n    matchLabels: {app: web}\n  template:\n    metadata: {labels: {app: web}}\n    spec:\n      containers: [{name: web, image: nginx}]",
+ cmds:["kubectl scale deployment web --replicas=3","kubectl delete pod <name>"]},
+
+{id:"deployment",belt:"yellow",name:"Deployment",kind:"controller",
+ tldr:"A Deployment manages ReplicaSets to give you rolling updates, rollbacks, and versioned history for stateless apps.",
+ analogy:"A film director managing understudies. To release a new version it spins up a new ReplicaSet, gradually shifts the audience over, and keeps the old cast waiting in the wings so it can roll back instantly.",
+ why:"The default way to run stateless workloads. Change the image and it rolls out pod by pod with zero downtime, respecting maxSurge/maxUnavailable.",
+ gotchas:["A rollout only triggers when the pod *template* changes. Editing a ConfigMap it mounts does NOT restart pods — use `kubectl rollout restart`.","`revisionHistoryLimit` caps how many old ReplicaSets are kept for rollback (default 10).","If new pods never become Ready (bad image, failing probe), the rollout stalls — old pods keep serving. That's a feature."],
+ yaml:"apiVersion: apps/v1\nkind: Deployment\nmetadata: {name: web}\nspec:\n  replicas: 3\n  selector:\n    matchLabels: {app: web}\n  strategy:\n    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}\n  template:\n    metadata: {labels: {app: web}}\n    spec:\n      containers: [{name: web, image: nginx:1.27}]",
+ cmds:["kubectl create deployment web --image=nginx --replicas=3","kubectl scale deployment web --replicas=5","kubectl rollout status deployment web"]},
+
+{id:"service",belt:"orange",name:"Service",kind:"networking",
+ tldr:"A Service is a stable virtual IP and DNS name in front of a shifting set of pods, load-balancing across whichever match its selector.",
+ analogy:"A restaurant's phone number. Cooks (pods) come and go, but you always dial the same number and get whoever's on shift. You never need to know a specific cook's mobile.",
+ why:"Pod IPs are ephemeral. A Service gives clients one address that never changes and spreads traffic across healthy backends automatically.",
+ gotchas:["The Service `selector` must match the pod `labels` exactly — a typo means zero endpoints and silent connection refusals.","ClusterIP is internal-only. NodePort exposes a high port on every node. LoadBalancer asks the cloud for an external IP.","It only routes to pods that are *Ready*. A failing readiness probe removes a pod from rotation without killing it."],
+ yaml:"apiVersion: v1\nkind: Service\nmetadata: {name: web}\nspec:\n  type: ClusterIP\n  selector: {app: web}   # must match pod labels!\n  ports:\n    - port: 80\n      targetPort: 8080",
+ cmds:["kubectl expose deployment web --port=80","kubectl get svc","kubectl get endpoints web"]},
+
+{id:"ingress",belt:"orange",name:"Ingress",kind:"networking",
+ tldr:"Ingress is HTTP(S) routing at the edge — host- and path-based rules that funnel outside traffic to internal Services.",
+ analogy:"The building's front receptionist. One public door; the receptionist reads where you're headed (`/api` vs `shop.example.com`) and sends you to the right internal office (Service).",
+ why:"Exposing every Service as its own LoadBalancer is expensive. One Ingress + one controller terminates TLS and routes many hostnames through a single entry point.",
+ gotchas:["An Ingress *resource* does nothing without an Ingress *controller* (nginx, Traefik, etc.) actually running.","Rules point to Services, not pods. If the Service has no endpoints, the route 503s.","Path matching semantics (Prefix vs Exact vs ImplementationSpecific) vary by controller — read the docs."],
+ yaml:"apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata: {name: shop}\nspec:\n  rules:\n    - host: shop.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service: {name: web, port: {number: 80}}",
+ cmds:["kubectl get ingress"]},
+
+{id:"configmap",belt:"green",name:"ConfigMap",kind:"config",
+ tldr:"A ConfigMap holds non-secret configuration as key/value pairs, decoupled from the image so the same image runs in dev and prod.",
+ analogy:"The settings menu shipped separately from the game disc. Change the difficulty without re-burning the disc (rebuilding the image).",
+ why:"Bake config into the image and every environment needs its own build. Externalize it and one immutable image is configured at deploy time.",
+ gotchas:["ConfigMaps injected as env vars are read at container start — updating the ConfigMap does NOT update running pods. Mounted-as-file values DO update (eventually), but the app must re-read them.","There's a 1 MiB size limit (it lives in etcd).","No secrecy at all — anyone with read access to the namespace sees the values. Use a Secret for credentials."],
+ yaml:"apiVersion: v1\nkind: ConfigMap\nmetadata: {name: app-config}\ndata:\n  LOG_LEVEL: \"info\"\n  FEATURE_FLAG: \"true\"",
+ cmds:["kubectl get configmap"]},
+
+{id:"secret",belt:"green",name:"Secret",kind:"config",
+ tldr:"A Secret is a ConfigMap's cousin for sensitive data — passwords, tokens, keys — with slightly more careful handling.",
+ analogy:"A locked drawer, not a vault. It keeps casual eyes off the values, but the lock is flimsy unless you turn on encryption-at-rest.",
+ why:"Keeps credentials out of images and Git. Kubernetes can mount them as files or env vars and restrict access via RBAC.",
+ gotchas:["Secret values are base64-*encoded*, NOT encrypted. `echo <val> | base64 -d` reveals them. Enable etcd encryption-at-rest for real protection.","Anyone who can `exec` into the pod or read the Secret in that namespace can see it — lock down RBAC.","Mounting a Secret as an env var can leak it into crash logs and child processes. Files are safer."],
+ yaml:"apiVersion: v1\nkind: Secret\nmetadata: {name: db-creds}\ntype: Opaque\ndata:\n  password: cGFzc3dvcmQ=   # base64('password') — NOT encrypted",
+ cmds:["kubectl get secret"]},
+
+{id:"volume",belt:"green",name:"Volumes & PVC",kind:"storage",
+ tldr:"Volumes give containers durable or shared storage. A PersistentVolumeClaim is a request for storage that outlives the pod.",
+ analogy:"A pod's own filesystem is a hotel room — cleaned out when you check out. A PersistentVolume is a storage unit you rent: your stuff stays even after the pod that used it is gone.",
+ why:"Containers are ephemeral; databases and uploads are not. PVCs let a pod ask for '10Gi of fast disk' without knowing which physical disk backs it.",
+ gotchas:["`emptyDir` lives and dies with the pod — fine for scratch, useless for persistence.","A PVC's `accessMode` (ReadWriteOnce vs ReadWriteMany) constrains how many nodes can mount it. RWO = one node.","The reclaim policy decides if the underlying disk is deleted or retained when the PVC goes away — `Delete` can lose data."],
+ yaml:"apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata: {name: data}\nspec:\n  accessModes: [ReadWriteOnce]\n  resources:\n    requests: {storage: 10Gi}",
+ cmds:["kubectl get pvc","kubectl get pv"]},
+
+{id:"apiserver",belt:"blue",name:"API Server",kind:"control plane",
+ tldr:"The kube-apiserver is the single front door to the cluster. Every read, write, and controller action goes through it.",
+ analogy:"The harbor master's office. Nothing enters or leaves the port without being logged here. kubectl, the scheduler, the kubelet — all of them talk only to the API server, never to each other directly.",
+ why:"A single, validated, authenticated, audited entry point makes the whole system consistent and secure. It's the only component that talks to etcd.",
+ gotchas:["It's stateless — it stores nothing itself; all state lives in etcd. You can run several behind a load balancer.","Every component watches the API server for changes; a slow API server slows the whole cluster.","Admission controllers and webhooks run here — a broken validating webhook can block ALL writes cluster-wide."],
+ yaml:"# You don't write manifests for the API server.\n# Everything you kubectl-apply is received, validated,\n# and persisted by it. Watch it work:",
+ cmds:["kubectl get --raw /healthz","kubectl api-resources"]},
+
+{id:"etcd",belt:"blue",name:"etcd",kind:"control plane",
+ tldr:"etcd is the cluster's database — a consistent, distributed key/value store holding the entire desired and observed state.",
+ analogy:"The ship's logbook, kept in triplicate by officers who must agree (Raft consensus) before anything is written. Lose the logbook and the ship forgets what it was doing.",
+ why:"Every object you create lives here. Its consistency guarantee is what lets controllers trust the state they read.",
+ gotchas:["It's the one component you MUST back up. No etcd backup = no disaster recovery.","Raft needs a quorum (majority). Run an odd number (3 or 5); 2 members is worse than 1.","Large or churny objects (big ConfigMaps, frequent updates) bloat etcd and slow the whole control plane."],
+ yaml:"# etcd is internal. State you create flows:\n# kubectl -> api-server -> etcd (the source of truth)\n# controllers watch etcd (via api-server) and act.",
+ cmds:["kubectl get --raw /healthz/etcd"]},
+
+{id:"scheduler",belt:"blue",name:"Scheduler",kind:"control plane",
+ tldr:"The scheduler watches for pods with no node assigned and picks the best node for each — it decides *where*, not *whether*.",
+ analogy:"A seating host at a busy restaurant. A new party (Pending pod) arrives; the host filters tables that fit the party's needs (resources, taints, affinity), scores the rest, and seats them at the best one.",
+ why:"Bin-packing thousands of pods across nodes by hand is impossible. The scheduler does it continuously using predicates (hard filters) then priorities (soft scoring).",
+ gotchas:["It only assigns the node. The kubelet on that node actually starts the pod.","A pod stays `Pending` forever if no node satisfies its requests — check `kubectl describe pod` for `FailedScheduling`.","Taints repel pods; tolerations let specific pods ignore a taint. Node affinity attracts. Master these to control placement."],
+ yaml:"# Influence the scheduler from the pod spec:\nspec:\n  nodeSelector: {disktype: ssd}\n  tolerations:\n    - key: \"gpu\"\n      operator: \"Exists\"",
+ cmds:["kubectl get pods -o wide","kubectl cordon <node>","kubectl describe pod <name>"]},
+
+{id:"controller",belt:"blue",name:"Controllers & the Reconcile Loop",kind:"control plane",
+ tldr:"The controller-manager runs dozens of control loops, each endlessly steering observed state toward desired state.",
+ analogy:"A cruise-control system. You set the desired speed (spec); the controller reads the actual speed (status) and adjusts the throttle, forever, correcting for every hill. It never assumes; it re-checks.",
+ why:"This 'reconciliation loop' is THE core idea of Kubernetes. Declare what you want; controllers make it true and keep it true, healing drift automatically.",
+ gotchas:["Controllers are level-triggered, not edge-triggered — they act on current state, so a missed event isn't fatal; the next loop catches it.","Two controllers fighting over the same object (e.g. a Deployment and a human editing pods) causes flapping.","Operators are just custom controllers — the same pattern applied to your own resource types."],
+ yaml:"# Delete a Deployment-owned pod and watch the loop:\n#   observed: 2 pods,  desired: 3\n#   controller creates 1 pod to close the gap.\n# Try it in the Cluster Lab.",
+ cmds:["kubectl delete pod <name>","kubectl get events"]},
+
+{id:"kubelet",belt:"blue",name:"kubelet",kind:"node agent",
+ tldr:"The kubelet is the agent on every node. It takes pods assigned to its node and makes the containers actually run — then reports back.",
+ analogy:"The deckhand on each ship. Head office (control plane) says 'run these three containers'; the deckhand pulls the images, starts them, watches their health, and radios status back up.",
+ why:"The control plane decides; the kubelet executes on the node. It's the bridge between abstract pod specs and real running containers via the container runtime (containerd/CRI-O).",
+ gotchas:["The kubelet — not the scheduler — runs the liveness/readiness probes and restarts failed containers.","If the kubelet dies, its pods keep running but go stale; after a timeout the node is marked NotReady and pods are rescheduled elsewhere.","It manages node resources: under memory pressure it evicts pods, starting with the lowest QoS class."],
+ yaml:"# The kubelet has no manifest you write.\n# It watches the api-server for pods bound to its node,\n# then drives the container runtime to run them.",
+ cmds:["kubectl get nodes","kubectl describe node <name>"]},
+
+{id:"statefulset",belt:"brown",name:"StatefulSet",kind:"workload",
+ tldr:"A StatefulSet runs pods with stable identities — sticky names, ordered rollout, and each with its own persistent storage.",
+ analogy:"A Deployment's pods are interchangeable cattle; a StatefulSet's pods are named pets. `db-0`, `db-1`, `db-2` — each keeps its name, its disk, and its turn in line across restarts.",
+ why:"Databases and clustered systems (Kafka, Cassandra) need stable network IDs and their own durable volumes. StatefulSets provide exactly that.",
+ gotchas:["Requires a *headless* Service (clusterIP: None) to give each pod a stable DNS name.","Scaling and rolling updates happen in order, one at a time — slower but safe.","Deleting a StatefulSet does NOT delete its PVCs by default; you can leak storage."],
+ yaml:"apiVersion: apps/v1\nkind: StatefulSet\nmetadata: {name: db}\nspec:\n  serviceName: db      # headless service\n  replicas: 3\n  selector: {matchLabels: {app: db}}\n  template: {metadata: {labels: {app: db}}, spec: {containers: [{name: db, image: postgres}]}}\n  volumeClaimTemplates:\n    - metadata: {name: data}\n      spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 10Gi}}}",
+ cmds:["kubectl get statefulset","kubectl get pods -l app=db"]},
+
+{id:"daemonset",belt:"brown",name:"DaemonSet",kind:"workload",
+ tldr:"A DaemonSet runs exactly one copy of a pod on every node (or a selected subset) — automatically, including on new nodes.",
+ analogy:"A smoke detector in every room. Add a room (node) and one is installed automatically; remove the room and it's gone. You never count them by hand.",
+ why:"Node-level agents — log collectors, metrics exporters, CNI networking, storage drivers — must run everywhere. DaemonSets guarantee coverage as the cluster grows and shrinks.",
+ gotchas:["It ignores `replicas`; the count equals the number of matching nodes.","To run on control-plane nodes it usually needs tolerations for their taints.","Rolling updates respect maxUnavailable but there's no surge — you can't have two per node."],
+ yaml:"apiVersion: apps/v1\nkind: DaemonSet\nmetadata: {name: node-exporter}\nspec:\n  selector: {matchLabels: {app: node-exporter}}\n  template:\n    metadata: {labels: {app: node-exporter}}\n    spec:\n      containers: [{name: exporter, image: prom/node-exporter}]",
+ cmds:["kubectl get daemonset -A"]},
+
+{id:"job",belt:"brown",name:"Job & CronJob",kind:"workload",
+ tldr:"A Job runs pods until a task completes successfully, then stops. A CronJob runs Jobs on a schedule.",
+ analogy:"Deployments are a shop that stays open forever. A Job is a one-off delivery run — it finishes and clocks out. A CronJob is the alarm clock that kicks off that run every night.",
+ why:"Batch work — migrations, backups, report generation — should run to completion and exit, not restart forever like a server.",
+ gotchas:["`restartPolicy` must be `OnFailure` or `Never`, never `Always` (that's for servers).","`backoffLimit` caps retries; a wedged Job without it can spawn pods endlessly.","CronJobs use the control-plane's clock and timezone; missed schedules (e.g. during downtime) follow `startingDeadlineSeconds` and `concurrencyPolicy`."],
+ yaml:"apiVersion: batch/v1\nkind: CronJob\nmetadata: {name: backup}\nspec:\n  schedule: \"0 2 * * *\"\n  jobTemplate:\n    spec:\n      backoffLimit: 3\n      template:\n        spec:\n          restartPolicy: OnFailure\n          containers: [{name: backup, image: backup-tool}]",
+ cmds:["kubectl get jobs","kubectl get cronjobs"]},
+
+{id:"probes",belt:"black",name:"Health Probes",kind:"reliability",
+ tldr:"Probes tell the kubelet whether a container is alive (liveness), ready for traffic (readiness), or still starting up (startup).",
+ analogy:"Liveness is a pulse check — no pulse, restart the patient. Readiness is 'are you fit to serve customers?' — unfit, pull from the queue but don't kill. Startup is 'give the newborn time before you start pulse checks.'",
+ why:"Without probes, Kubernetes only knows if the *process* is up, not if the *app* actually works. Probes catch deadlocks and route traffic only to pods that can handle it.",
+ gotchas:["Confusing liveness and readiness is the classic mistake: a failing liveness probe RESTARTS the pod; a failing readiness probe just removes it from the Service. Use liveness sparingly.","A too-aggressive liveness probe on a slow-starting app causes restart loops — that's what startup probes fix.","Readiness failing on all pods = Service has zero endpoints = total outage, with pods still 'running'."],
+ yaml:"livenessProbe:\n  httpGet: {path: /healthz, port: 8080}\n  initialDelaySeconds: 10\n  periodSeconds: 5\nreadinessProbe:\n  httpGet: {path: /ready, port: 8080}\n  periodSeconds: 5",
+ cmds:["kubectl describe pod <name>","kubectl get pods"]},
+
+{id:"resources",belt:"black",name:"Requests, Limits & QoS",kind:"reliability",
+ tldr:"Requests are what a pod is guaranteed (and scheduled by); limits are the hard ceiling. Together they set the pod's QoS class.",
+ analogy:"Requests are your reserved seat — always yours. Limits are the fire-code max for the room. Ask for a seat you'll get; try to exceed the max and you're stopped (CPU throttled) or removed (memory OOMKilled).",
+ why:"The scheduler packs nodes using requests. Limits protect noisy neighbors. QoS decides who gets evicted first when a node runs out of memory.",
+ gotchas:["Exceeding a MEMORY limit = the container is OOMKilled instantly. Exceeding a CPU limit = merely throttled, not killed.","No requests/limits at all = 'BestEffort' QoS = first to be evicted under pressure.","requests == limits for both CPU and memory = 'Guaranteed' QoS = evicted last. This is what critical pods want.","Setting a memory request far below actual usage causes surprise evictions and OOMKills."],
+ yaml:"resources:\n  requests: {cpu: \"250m\", memory: \"256Mi\"}\n  limits:   {cpu: \"500m\", memory: \"256Mi\"}\n  # requests==limits (memory) -> Guaranteed QoS",
+ cmds:["kubectl describe pod <name>","kubectl top pods"]},
+
+{id:"hpa",belt:"black",name:"Horizontal Pod Autoscaler",kind:"scaling",
+ tldr:"The HPA automatically changes a Deployment's replica count based on observed metrics like CPU or custom signals.",
+ analogy:"A thermostat wired to the replica dial. Load rises past your target, it adds pods; load drops, it removes them — always steering toward the setpoint.",
+ why:"Traffic isn't constant. The HPA right-sizes capacity automatically, saving money at night and surviving spikes at noon.",
+ gotchas:["It needs a metrics source (metrics-server) — without it, the HPA can't read CPU and does nothing.","It needs resource *requests* set; CPU utilization is measured as a percentage of the request.","HPA (more pods) and VPA (bigger pods) conflict on the same metric — don't run both on CPU.","Scale-down is deliberately slow (stabilization window) to avoid flapping."],
+ yaml:"apiVersion: autoscaling/v2\nkind: HorizontalPodAutoscaler\nmetadata: {name: web}\nspec:\n  scaleTargetRef: {kind: Deployment, name: web}\n  minReplicas: 2\n  maxReplicas: 10\n  metrics:\n    - type: Resource\n      resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}",
+ cmds:["kubectl get hpa","kubectl scale deployment web --replicas=5"]},
+
+{id:"rbac",belt:"black",name:"RBAC",kind:"security",
+ tldr:"Role-Based Access Control governs who (users, groups, service accounts) can do what (verbs) to which resources.",
+ analogy:"Keycards for a building. A Role is a keycard listing which doors (resources) and actions (verbs) it opens; a RoleBinding hands that card to a person or a service account. No card, no entry.",
+ why:"The API server is powerful; unrestricted access is dangerous. RBAC enforces least privilege — pods and people get exactly the permissions they need, no more.",
+ gotchas:["Role + RoleBinding are namespaced; ClusterRole + ClusterRoleBinding are cluster-wide. Mixing them up over-grants access.","RBAC is additive and allow-only — there are no deny rules. A permission granted anywhere applies.","Every pod runs as a ServiceAccount (the `default` one if unspecified). Don't mount its token if the pod doesn't call the API.","`cluster-admin` bound to a service account is a common, dangerous over-grant."],
+ yaml:"apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata: {namespace: team-a, name: pod-reader}\nrules:\n  - apiGroups: [\"\"]\n    resources: [pods]\n    verbs: [get, list, watch]",
+ cmds:["kubectl auth can-i list pods","kubectl get roles,rolebindings"]},
+
+{id:"operator",belt:"black",name:"CRDs & Operators",kind:"extensibility",
+ tldr:"A CustomResourceDefinition teaches the API server a new object type; an Operator is a controller that acts on it.",
+ analogy:"CRDs add new nouns to Kubernetes' vocabulary ('a PostgresCluster'); the Operator is the expert (a controller) that knows the verbs — how to actually provision, back up, and heal that thing.",
+ why:"You get to extend Kubernetes with your own domain concepts and encode operational knowledge as software, using the same declarative reconcile-loop model as built-in resources.",
+ gotchas:["A CRD alone just stores YAML — nothing happens until a controller/Operator watches and reconciles it.","Versioning CRDs (v1alpha1 → v1) needs conversion webhooks; breaking schema changes bite users hard.","A buggy Operator with broad RBAC can wreak cluster-wide havoc — scope its permissions tightly."],
+ yaml:"apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata: {name: crontabs.stable.example.com}\nspec:\n  group: stable.example.com\n  scope: Namespaced\n  names: {kind: CronTab, plural: crontabs, singular: crontab}\n  versions: [{name: v1, served: true, storage: true, schema: {}}]",
+ cmds:["kubectl get crds","kubectl api-resources"]},
+];
+
+/* ============================ TRIALS ============================ */
+const TRIALS=[
+{kind:"concept",q:"You run <code>kubectl delete pod web-abc</code> on a pod owned by a Deployment. Seconds later a new <code>web-xyz</code> pod appears. Why?",
+ opts:["Kubernetes caches deleted pods and restores them","The Deployment's ReplicaSet reconciles: observed (2) &lt; desired (3), so it creates one","kubectl automatically re-runs failed commands","The node's kubelet keeps a backup copy of every pod"],
+ a:1, expl:"This is the <b>reconcile loop</b>. The ReplicaSet controller constantly compares observed vs desired replica count and closes any gap. Bare pods (not owned by a controller) would stay deleted. Try it live in the Cluster Lab."},
+{kind:"debug",q:"This Service returns 'connection refused' — no traffic reaches the pods. What's wrong?",
+ code:"kind: Service\nspec:\n  selector:\n    app: webserver     # <—\n  ports: [{port: 80}]\n---\nkind: Pod\nmetadata:\n  labels:\n    app: web           # <—",
+ opts:["The port should be 8080","The selector <code>app: webserver</code> doesn't match the pod label <code>app: web</code> — zero endpoints","Services can't target Pods directly","Missing a <code>targetPort</code> field"],
+ a:1, expl:"A Service finds backends by matching its <b>selector</b> to pod <b>labels</b>. <code>webserver</code> ≠ <code>web</code>, so the Service has no endpoints and refuses connections silently. Label/selector typos are the #1 cause of 'my Service doesn't work'."},
+{kind:"concept",q:"A container repeatedly gets <b>OOMKilled</b>. Which change actually addresses it?",
+ opts:["Raise the CPU limit","Raise the memory limit (or lower the app's memory use)","Add more replicas","Increase initialDelaySeconds on the liveness probe"],
+ a:1, expl:"OOMKilled = the container exceeded its <b>memory limit</b>. CPU over-use only throttles; memory over-use kills instantly. Raise the memory limit or reduce usage. More replicas won't help a single over-budget container."},
+{kind:"concept",q:"Your app takes 40s to warm up. During that window Kubernetes keeps restarting it in a loop. Most likely cause?",
+ opts:["The readiness probe is failing","A liveness probe with a short initialDelay is firing before the app is up","The image is too large","etcd is out of space"],
+ a:1, expl:"A <b>liveness</b> probe failing = restart. If it starts checking before a slow app is ready, you get a restart loop. Fix it with a <b>startupProbe</b> (or a larger initialDelaySeconds). Readiness failing would only remove it from the Service, not restart it."},
+{kind:"debug",q:"This pod stays <b>Pending</b> forever. <code>kubectl describe</code> shows <code>FailedScheduling</code>. What is it telling you?",
+ code:"spec:\n  containers:\n    - name: app\n      image: app\n      resources:\n        requests:\n          memory: \"64Gi\"   # <—",
+ opts:["The image name is invalid","No node has 64Gi of free memory to satisfy the request, so the scheduler can't place it","Pending always means a network error","The container port is missing"],
+ a:1, expl:"The <b>scheduler</b> filters nodes by whether they can satisfy the pod's resource <b>requests</b>. If none has 64Gi free, the pod is unschedulable and stays Pending. <code>describe pod</code> spells this out under Events → FailedScheduling."},
+{kind:"concept",q:"Which statement about Kubernetes <b>Secrets</b> is true?",
+ opts:["Values are encrypted with your cluster's private key by default","Values are only base64-encoded at rest unless you enable encryption-at-rest","Secrets can't be mounted as files","Only the API server can ever read a Secret's value"],
+ a:1, expl:"By default Secret values are merely <b>base64-encoded</b> in etcd — trivially reversible. Real protection requires enabling <b>encryption-at-rest</b> and tightening RBAC. Treating base64 as security is a classic and dangerous misconception."},
+{kind:"concept",q:"You edit a ConfigMap that's injected into pods as environment variables. The running pods don't pick up the change. Why?",
+ opts:["ConfigMaps are immutable","Env vars are read once at container start — you must restart the pods","You need cluster-admin to update ConfigMaps","The change takes exactly 10 minutes to propagate"],
+ a:1, expl:"Env-var injection is a <b>one-time copy</b> at container start. Updating the ConfigMap doesn't touch running processes — <code>kubectl rollout restart</code> the Deployment. (Values mounted as files DO update, but the app must re-read them.)"},
+{kind:"debug",q:"This batch Job's pod runs, exits 0, then starts again and again — never finishing. What's misconfigured?",
+ code:"kind: Job\nspec:\n  template:\n    spec:\n      restartPolicy: Always   # <—\n      containers: [{name: migrate, image: migrator}]",
+ opts:["Jobs need three replicas minimum","<code>restartPolicy: Always</code> is invalid for Jobs — use OnFailure or Never","The image tag is missing","Jobs can't run containers, only CronJobs can"],
+ a:1, expl:"<code>restartPolicy: Always</code> means 'restart no matter what' — that's server behavior, and Jobs reject it. A Job needs <b>OnFailure</b> or <b>Never</b> so a successful exit actually counts as done."},
+];
+
+/* ============================ CLUSTER STATE + RECONCILER ============================ */
+const KNOWN_IMAGES=["nginx","redis","httpd","busybox","postgres","node","python","alpine","mysql","mongo","prom/node-exporter","backup-tool","migrator","app"];
+function imagePullable(img){
+  const base=img.split(":")[0].toLowerCase();
+  if(/notreal|doesnotexist|badimage|typo|nonexist|fake/.test(img)) return false;
+  return KNOWN_IMAGES.some(k=>base===k||base.endsWith("/"+k)||k.endsWith("/"+base)) || !base.includes("notreal");
+}
+let CLK=0;
+const rnd=(n)=>Math.floor(Math.random()*n);
+const suffix=()=>Math.random().toString(36).slice(2,7);
+function hhmmss(s){const m=Math.floor(s/60),ss=s%60;return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}:${String(ss).padStart(2,"0")}`;}
+function age(s){const d=CLK-s;if(d<60)return d+"s";if(d<3600)return Math.floor(d/60)+"m";return Math.floor(d/3600)+"h";}
+
+const state={
+  nodes:[
+    {name:"worker-a",cpu:2,schedulable:true,ready:true},
+    {name:"worker-b",cpu:2,schedulable:true,ready:true},
+    {name:"worker-c",cpu:2,schedulable:true,ready:true},
+  ],
+  deployments:[
+    {name:"web",image:"nginx:1.27",replicas:2,labels:{app:"web"}},
+    {name:"redis",image:"redis:7",replicas:1,labels:{app:"redis"}},
+  ],
+  services:[
+    {name:"web",type:"ClusterIP",selector:{app:"web"},port:80,ip:"10.96.0.14",created:0},
+    {name:"kubernetes",type:"ClusterIP",selector:{},port:443,ip:"10.96.0.1",created:0},
+  ],
+  pods:[],
+  events:[],
+};
+function ev(msg,cls){state.events.unshift({t:CLK,msg,cls:cls||""});if(state.events.length>60)state.events.pop();}
+function nodePodCount(n){return state.pods.filter(p=>p.node===n&&p.status!=="Terminating").length;}
+function podsOf(dep){return state.pods.filter(p=>p.ownerDep===dep&&p.status!=="Terminating");}
+function newPod(ownerDep,image,labels,ns){
+  return {name:`${ownerDep}-${suffix()}`,ns:ns||"default",image,labels:labels||{},node:null,
+    status:"Pending",restarts:0,created:CLK,phase:0,ownerDep:ownerDep||null,standalone:!ownerDep};
+}
+// seed system pods (only visible with -A)
+["coredns-1","coredns-2","kube-proxy-a","etcd-cp"].forEach((n,i)=>{
+  state.pods.push({name:n,ns:"kube-system",image:"registry.k8s.io/system",node:state.nodes[i%3].name,
+    status:"Running",restarts:0,created:0,phase:9,ownerDep:null,standalone:false,system:true});
+});
+
+function reconcile(){
+  CLK+=3;
+  // 1. deployments -> desired pods
+  for(const d of state.deployments){
+    const cur=podsOf(d.name);
+    if(cur.length<d.replicas){
+      for(let i=cur.length;i<d.replicas;i++){
+        const p=newPod(d.name,d.image,d.labels);
+        state.pods.push(p);
+      }
+    }else if(cur.length>d.replicas){
+      const excess=cur.slice().sort((a,b)=>b.created-a.created).slice(0,cur.length-d.replicas);
+      excess.forEach(p=>{p.status="Terminating";p.termAt=CLK;});
+    }
+  }
+  // 2. lifecycle progression
+  const ready=state.nodes.filter(n=>n.ready&&n.schedulable);
+  for(const p of state.pods){
+    if(p.system) continue;
+    if(p.status==="Terminating"){
+      if(CLK-(p.termAt||CLK)>=3){p._remove=true;}
+      continue;
+    }
+    if(p.status==="Pending"){
+      if(!ready.length){ if(!p._warned){ev(`FailedScheduling: no schedulable node for ${p.name}`,"warn");p._warned=true;} continue; }
+      const target=ready.slice().sort((a,b)=>nodePodCount(a.name)-nodePodCount(b.name))[0];
+      p.node=target.name; p.status="ContainerCreating"; p.phase=0;
+      ev(`Scheduled ${p.name} → ${p.node}`,"");
+      continue;
+    }
+    if(p.status==="ContainerCreating"){
+      p.phase++;
+      if(p.phase===1) ev(`Pulling image "${p.image}" for ${p.name}`,"");
+      if(p.phase>=2){
+        if(!imagePullable(p.image)){
+          p.status="ImagePullBackOff";
+          ev(`Failed to pull "${p.image}" — ImagePullBackOff (${p.name})`,"crit");
+        }else{
+          p.status="Running"; p.startedAt=CLK;
+          ev(`Started container in ${p.name}`,"good");
+        }
+      }
+      continue;
+    }
+    if(p.status==="ImagePullBackOff"){
+      if(Math.random()<0.3){p.restarts++;}
+      continue;
+    }
+    if(p.status==="Running"){
+      // rare random crash for realism only on 'crashy' images
+      if(/crash/.test(p.image)&&Math.random()<0.2){p.status="CrashLoopBackOff";p.restarts++;ev(`${p.name} entered CrashLoopBackOff`,"crit");}
+    }
+  }
+  state.pods=state.pods.filter(p=>!p._remove);
+  render();
+}
+
+/* ============================ RENDER CLUSTER ============================ */
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e;};
+
+function render(){
+  const nodesWrap=$("#nodes"); nodesWrap.innerHTML="";
+  for(const n of state.nodes){
+    const nd=el("div","node"+(n.schedulable?"":" cordoned"));
+    const head=el("div","nh");
+    const nn=el("div","nn"); nn.textContent=n.name;
+    if(!n.schedulable){const c=el("span","cord","⊘ cordoned");nn.appendChild(c);}
+    head.appendChild(nn);
+    head.appendChild(el("div","agents","kubelet · kube-proxy"));
+    nd.appendChild(head);
+    const load=Math.min(100,nodePodCount(n.name)/6*100);
+    const bar=el("div","cpubar");const bi=el("i");bi.style.width=load+"%";bar.appendChild(bi);nd.appendChild(bar);
+    const pods=el("div","pods");
+    const here=state.pods.filter(p=>p.node===n.name&&p.ns==="default");
+    if(!here.length){pods.appendChild(el("div","empty","— no pods —"));}
+    here.forEach(p=>{
+      const pod=el("button","pod "+p.status);
+      pod.appendChild(el("span","st"));
+      pod.appendChild(document.createTextNode(p.name.replace(/^.*?-/,(m)=>m)));
+      pod.title=`${p.name}\nstatus: ${p.status}\nimage: ${p.image}\nrestarts: ${p.restarts}\nage: ${age(p.created)}`;
+      pod.addEventListener("click",()=>termDescribePod(p.name));
+      pods.appendChild(pod);
+    });
+    nd.appendChild(pods);
+    nodesWrap.appendChild(nd);
+  }
+  // summary pills
+  const sum=$("#summary"); sum.innerHTML="";
+  const running=state.pods.filter(p=>p.ns==="default"&&p.status==="Running").length;
+  const total=state.pods.filter(p=>p.ns==="default"&&p.status!=="Terminating").length;
+  const mk=(label,val)=>{const p=el("span","pill");p.innerHTML=`${label} <b>${val}</b>`;return p;};
+  sum.appendChild(mk("pods",`${running}/${total} ready`));
+  sum.appendChild(mk("deployments",state.deployments.length));
+  sum.appendChild(mk("services",state.services.length));
+  sum.appendChild(mk("nodes",state.nodes.filter(n=>n.ready).length));
+  // events
+  const evw=$("#events"); evw.innerHTML="";
+  state.events.slice(0,10).forEach(e=>{
+    const row=el("div","ev "+e.cls);
+    const t=el("time");t.textContent=hhmmss(e.t);
+    row.appendChild(t);row.appendChild(document.createTextNode(e.msg));
+    evw.appendChild(row);
+  });
+}
+
+/* ============================ TERMINAL ============================ */
+const out=$("#termout");
+function print(text,cls){const d=el("div","line "+(cls||""));d.textContent=text;out.appendChild(d);out.scrollTop=out.scrollHeight;return d;}
+function printRaw(html){const d=el("div","line");d.innerHTML=html;out.appendChild(d);out.scrollTop=out.scrollHeight;}
+function echo(cmd){const d=el("div","line cmd");d.innerHTML=`<span class="pmt">❯</span> ${escapeHtml(cmd)}`;out.appendChild(d);out.scrollTop=out.scrollHeight;}
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function pad(s,n){s=String(s);return s.length>=n?s.slice(0,n-1)+" ":s+" ".repeat(n-s.length);}
+
+const HISTORY=[];let hIdx=-1;
+
+function parseFlags(tokens){
+  const flags={},pos=[];
+  for(let i=0;i<tokens.length;i++){
+    let t=tokens[i];
+    if(t.startsWith("--")){
+      const eq=t.indexOf("=");
+      if(eq>-1){flags[t.slice(2,eq)]=t.slice(eq+1);}
+      else{const key=t.slice(2);const nx=tokens[i+1];if(nx&&!nx.startsWith("-")){flags[key]=nx;i++;}else flags[key]=true;}
+    }else if(t.startsWith("-")&&t.length>1){
+      const key=t.slice(1);const nx=tokens[i+1];
+      if(key==="A"){flags.all=true;}
+      else if(key==="o"||key==="n"||key==="l"){if(nx){flags[key]=nx;i++;}}
+      else flags[key]=true;
+    }else pos.push(t);
+  }
+  return {flags,pos};
+}
+
+function run(raw){
+  const cmd=raw.trim();
+  if(!cmd)return;
+  echo(cmd);
+  HISTORY.unshift(cmd);hIdx=-1;
+  const tokens=cmd.split(/\s+/);
+  const head=tokens[0];
+  if(head==="clear"){out.innerHTML="";return;}
+  if(head==="help"||head==="?"){return help();}
+  if(head==="reset"){resetCluster();print("cluster reset to initial state.","ok");return;}
+  if(head!=="kubectl"&&head!=="k"){print(`command not found: ${head}. This dojo speaks kubectl. Type "help".`,"err");return;}
+  const {flags,pos}=parseFlags(tokens.slice(1));
+  const verb=pos[0];
+  try{
+    switch(verb){
+      case "get": return kGet(pos.slice(1),flags);
+      case "describe": return kDescribe(pos.slice(1));
+      case "scale": return kScale(pos.slice(1),flags);
+      case "delete": return kDelete(pos.slice(1),flags);
+      case "run": return kRun(pos.slice(1),flags);
+      case "create": return kCreate(pos.slice(1),flags);
+      case "expose": return kExpose(pos.slice(1),flags);
+      case "logs": return kLogs(pos.slice(1));
+      case "explain": return kExplain(pos.slice(1));
+      case "cordon": return kCordon(pos.slice(1),false);
+      case "uncordon": return kCordon(pos.slice(1),true);
+      case "drain": return kDrain(pos.slice(1));
+      case "rollout": return kRollout(pos.slice(1));
+      case "apply": return print('Simulated apply isn\'t wired to a file editor here. Try: kubectl create deployment <name> --image=<img> --replicas=N','warnl');
+      case "api-resources": return kApiResources();
+      case undefined: return print("kubectl controls the Kubernetes cluster manager. Type \"help\" for supported commands.","dim");
+      default: return print(`error: unknown command "${verb}". Type "help".`,"err");
+    }
+  }catch(e){print("error: "+e.message,"err");}
+}
+
+function kGet(args,flags){
+  const kind=(args[0]||"").toLowerCase().replace(/s$/,"");
+  const ns=flags.all?null:(flags.n||"default");
+  const wide=flags.o==="wide";
+  if(!kind){return print('error: you must specify a resource, e.g. "kubectl get pods"',"err");}
+  if(["pod","po"].includes(kind)||kind==="po"){
+    let pods=state.pods.filter(p=>p.status!=="Terminating");
+    if(ns) pods=pods.filter(p=>p.ns===ns);
+    if(flags.l){const [k,v]=flags.l.split("=");pods=pods.filter(p=>p.labels&&p.labels[k]===v);}
+    if(!pods.length)return print(ns?`No resources found in ${ns} namespace.`:"No resources found.","dim");
+    let hdr=(flags.all?pad("NAMESPACE",14):"")+pad("NAME",24)+pad("READY",7)+pad("STATUS",20)+pad("RESTARTS",10)+pad("AGE",7)+(wide?pad("NODE",12):"");
+    printRaw(`<span class="tbl">${escapeHtml(hdr)}</span>`);
+    pods.forEach(p=>{
+      const ready=p.status==="Running"?"1/1":"0/1";
+      let row=(flags.all?pad(p.ns,14):"")+pad(p.name,24)+pad(ready,7)+pad(p.status,20)+pad(p.restarts,10)+pad(age(p.created),7)+(wide?pad(p.node||"<none>",12):"");
+      const cls=p.status==="Running"?"ok":(/BackOff|Crash/.test(p.status)?"err":(p.status==="ContainerCreating"?"warnl":"dim"));
+      printRaw(`<span class="${cls}">${escapeHtml(row)}</span>`);
+    });
+    return;
+  }
+  if(kind==="node"||kind==="no"){
+    printRaw(`<span class="tbl">${escapeHtml(pad("NAME",12)+pad("STATUS",24)+pad("ROLES",16)+pad("AGE",7)+"VERSION")}</span>`);
+    state.nodes.forEach(n=>{
+      const st=(n.ready?"Ready":"NotReady")+(n.schedulable?"":",SchedulingDisabled");
+      printRaw(`<span class="${n.ready?"ok":"err"}">${escapeHtml(pad(n.name,12)+pad(st,24)+pad("worker",16)+pad("6d",7)+"v1.30.2")}</span>`);
+    });
+    return;
+  }
+  if(kind==="deployment"||kind==="deploy"){
+    if(!state.deployments.length)return print("No resources found in default namespace.","dim");
+    printRaw(`<span class="tbl">${escapeHtml(pad("NAME",16)+pad("READY",8)+pad("UP-TO-DATE",12)+pad("AVAILABLE",11)+pad("AGE",7)+"IMAGE")}</span>`);
+    state.deployments.forEach(d=>{
+      const r=podsOf(d.name).filter(p=>p.status==="Running").length;
+      printRaw(`<span class="${r>=d.replicas?"ok":"warnl"}">${escapeHtml(pad(d.name,16)+pad(`${r}/${d.replicas}`,8)+pad(d.replicas,12)+pad(r,11)+pad("5d",7)+d.image)}</span>`);
+    });
+    return;
+  }
+  if(kind==="service"||kind==="svc"){
+    printRaw(`<span class="tbl">${escapeHtml(pad("NAME",14)+pad("TYPE",12)+pad("CLUSTER-IP",14)+pad("PORT",8)+pad("SELECTOR",16))}</span>`);
+    state.services.forEach(s=>{
+      const sel=Object.entries(s.selector).map(([k,v])=>`${k}=${v}`).join(",")||"<none>";
+      printRaw(`<span class="tbl"><b>${escapeHtml(pad(s.name,14))}</b>${escapeHtml(pad(s.type,12)+pad(s.ip,14)+pad(s.port+"/TCP",8)+pad(sel,16))}</span>`);
+    });
+    return;
+  }
+  if(kind==="endpoint"||kind==="ep"){
+    const svcName=args[1];
+    state.services.filter(s=>!svcName||s.name===svcName).forEach(s=>{
+      const eps=state.pods.filter(p=>p.status==="Running"&&Object.entries(s.selector).every(([k,v])=>p.labels[k]===v));
+      print(`${pad(s.name,14)}${eps.length?eps.map(p=>p.name).join(","):"<none>  ← selector matches nothing!"}`,eps.length?"tbl":"warnl");
+    });
+    return;
+  }
+  if(kind==="event"){
+    state.events.slice(0,15).forEach(e=>print(`${hhmmss(e.t)}  ${e.msg}`,e.cls==="crit"?"err":e.cls==="warn"?"warnl":"dim"));
+    return;
+  }
+  if(kind==="all"){
+    kGet(["deployments"],flags);print("",""); kGet(["pods"],flags);print("",""); kGet(["services"],flags);return;
+  }
+  print(`error: the server doesn't have a resource type "${args[0]}" in this dojo. Try pods, nodes, deployments, services, events.`,"err");
+}
+
+function kDescribe(args){
+  const kind=(args[0]||"").toLowerCase();const name=args[1];
+  if(kind.startsWith("pod")){return termDescribePod(name);}
+  if(kind.startsWith("node")){
+    const n=state.nodes.find(x=>x.name===name);
+    if(!n)return print(`Error from server (NotFound): nodes "${name}" not found`,"err");
+    print(`Name:               ${n.name}`,"tbl");
+    print(`Roles:              worker`,"dim");
+    print(`Taints:             ${n.schedulable?"<none>":"node.kubernetes.io/unschedulable:NoSchedule"}`,"dim");
+    print(`Conditions:         Ready=${n.ready}`,"dim");
+    print(`Non-terminated pods: ${nodePodCount(n.name)}`,"dim");
+    print(`Allocatable:        cpu: ${n.cpu}  memory: 4Gi`,"dim");
+    return;
+  }
+  print('Usage: kubectl describe pod <name>   |   kubectl describe node <name>',"warnl");
+}
+function termDescribePod(name){
+  const p=state.pods.find(x=>x.name===name)||state.pods.find(x=>x.name.startsWith(name||" "));
+  if(!p)return print(`Error from server (NotFound): pods "${name}" not found`,"err");
+  print(`Name:         ${p.name}`,"tbl");
+  print(`Namespace:    ${p.ns}`,"dim");
+  print(`Node:         ${p.node||"<none>"}`,"dim");
+  print(`Labels:       ${Object.entries(p.labels).map(([k,v])=>`${k}=${v}`).join(", ")||"<none>"}`,"dim");
+  print(`Status:       ${p.status}`,p.status==="Running"?"ok":/BackOff|Crash/.test(p.status)?"err":"warnl");
+  print(`Controlled By: ${p.ownerDep?`ReplicaSet/${p.ownerDep}-`+ "xxxxx":"<none> (bare pod — will NOT self-heal)"}`,p.ownerDep?"dim":"warnl");
+  print(`Containers:`,"tbl");
+  print(`  app:  image=${p.image}  restarts=${p.restarts}`,"dim");
+  print(`Events:`,"tbl");
+  if(p.status==="Pending"){print(`  Warning  FailedScheduling  no node currently available`,"warnl");}
+  else if(p.status==="ImagePullBackOff"){print(`  Warning  Failed  Failed to pull image "${p.image}": not found`,"err");print(`  Warning  BackOff  Back-off pulling image`,"err");}
+  else{print(`  Normal  Scheduled  → ${p.node}`,"dim");print(`  Normal  Pulled  image "${p.image}"`,"dim");print(`  Normal  Started  container started`,"dim");}
+}
+
+function kScale(args,flags){
+  const t=(args[0]||"");const name=args[1]||t.split("/")[1];
+  const depName=name||t.split("/")[1];
+  const rep=parseInt(flags.replicas,10);
+  if(isNaN(rep))return print("error: --replicas is required, e.g. --replicas=4","err");
+  const d=state.deployments.find(x=>x.name===(depName||t.replace("deployment/","").replace("deploy/","")));
+  if(!d)return print(`Error from server (NotFound): deployments "${depName||t}" not found`,"err");
+  const old=d.replicas;d.replicas=Math.max(0,rep);
+  ev(`Scaled deployment/${d.name}: ${old} → ${d.replicas} replicas`,"good");
+  print(`deployment.apps/${d.name} scaled`,"ok");
+}
+
+function kDelete(args,flags){
+  const kind=(args[0]||"").toLowerCase().replace(/s$/,"");
+  const name=args[1];
+  if(kind==="pod"||kind==="po"){
+    const p=state.pods.find(x=>x.name===name);
+    if(!p)return print(`Error from server (NotFound): pods "${name}" not found`,"err");
+    p.status="Terminating";p.termAt=CLK;
+    ev(`Deleting pod ${p.name}`,"warn");
+    print(`pod "${name}" deleted`,"ok");
+    if(p.ownerDep)print(`↳ owned by deployment/${p.ownerDep} — the controller will recreate it. Watch the diagram.`,"info");
+    return;
+  }
+  if(kind==="deployment"||kind==="deploy"){
+    const i=state.deployments.findIndex(x=>x.name===name);
+    if(i<0)return print(`Error from server (NotFound): deployments "${name}" not found`,"err");
+    state.deployments.splice(i,1);
+    state.pods.filter(p=>p.ownerDep===name).forEach(p=>{p.status="Terminating";p.termAt=CLK;});
+    ev(`Deleted deployment/${name} and its pods`,"warn");
+    print(`deployment.apps "${name}" deleted`,"ok");
+    return;
+  }
+  if(kind==="service"||kind==="svc"){
+    const i=state.services.findIndex(x=>x.name===name);
+    if(i<0)return print(`Error from server (NotFound): services "${name}" not found`,"err");
+    state.services.splice(i,1);print(`service "${name}" deleted`,"ok");return;
+  }
+  print('Usage: kubectl delete pod|deployment|service <name>',"warnl");
+}
+
+function kRun(args,flags){
+  const name=args[0];
+  if(!name)return print("error: NAME is required for run","err");
+  const image=flags.image;
+  if(!image)return print("error: --image is required, e.g. --image=nginx","err");
+  if(state.pods.some(p=>p.name===name))return print(`Error from server (AlreadyExists): pods "${name}" already exists`,"err");
+  const p=newPod(null,image,{run:name});p.name=name;p.standalone=true;
+  state.pods.push(p);
+  ev(`Created bare pod ${name} (image ${image})`,"");
+  print(`pod/${name} created`,"ok");
+  print(`↳ heads up: a bare pod has no controller. Delete it and it stays gone (no self-healing).`,"info");
+}
+
+function kCreate(args,flags){
+  const kind=(args[0]||"").toLowerCase();
+  if(kind==="deployment"||kind==="deploy"){
+    const name=args[1];
+    if(!name)return print("error: NAME is required","err");
+    const image=flags.image;
+    if(!image)return print("error: --image is required","err");
+    if(state.deployments.some(d=>d.name===name))return print(`Error from server (AlreadyExists): deployments "${name}" already exists`,"err");
+    const rep=parseInt(flags.replicas,10)||1;
+    state.deployments.push({name,image,replicas:rep,labels:{app:name}});
+    ev(`Created deployment/${name} (${rep} replicas, ${image})`,"good");
+    print(`deployment.apps/${name} created`,"ok");
+    return;
+  }
+  if(kind==="namespace"||kind==="ns"){print(`namespace/${args[1]} created`,"ok");return;}
+  if(kind==="service"||kind==="svc"){return kExpose(args.slice(1),flags);}
+  print('Usage: kubectl create deployment <name> --image=<img> [--replicas=N]',"warnl");
+}
+
+function kExpose(args,flags){
+  const t=args[0]||"";const name=args[1]||t.replace("deployment/","").replace("deploy/","");
+  const d=state.deployments.find(x=>x.name===name);
+  if(!d)return print(`Error from server (NotFound): deployments "${name}" not found`,"err");
+  if(state.services.some(s=>s.name===name))return print(`Error from server (AlreadyExists): services "${name}" already exists`,"err");
+  const port=parseInt(flags.port,10)||80;
+  state.services.push({name,type:flags.type||"ClusterIP",selector:{...d.labels},port,ip:"10.96.0."+(20+rnd(200)),created:CLK});
+  ev(`Exposed deployment/${name} as service (port ${port})`,"good");
+  print(`service/${name} exposed`,"ok");
+}
+
+function kLogs(args){
+  const name=args[0];
+  const p=state.pods.find(x=>x.name===name);
+  if(!p)return print(`Error from server (NotFound): pods "${name}" not found`,"err");
+  if(p.status!=="Running")return print(`Error from server (BadRequest): container in pod "${name}" is not running (status: ${p.status})`,"err");
+  const img=p.image.split(":")[0];
+  const logs={
+    nginx:['/docker-entrypoint.sh: Configuration complete; ready for start up','172.17.0.1 - - "GET / HTTP/1.1" 200 615','172.17.0.1 - - "GET /health HTTP/1.1" 200 2'],
+    redis:['Ready to accept connections tcp','Background saving started by pid 42','DB saved on disk'],
+    postgres:['database system is ready to accept connections','checkpoint starting: time','autovacuum launcher started'],
+  }[img]||[`[${img}] starting up...`,`[${img}] listening on :8080`,`[${img}] healthy`];
+  logs.forEach(l=>print(l,"dim"));
+}
+
+function kExplain(args){
+  const r=(args[0]||"").toLowerCase().replace(/s$/,"");
+  const c=C.find(x=>x.id===r||x.name.toLowerCase().replace(/[^a-z]/g,"")===r.replace(/[^a-z]/g,""));
+  if(c){print(`${c.name.toUpperCase()}`,"info");print(c.tldr,"tbl");print(`↳ open the Concepts tab for the full deep-dive, gotchas, and YAML.`,"dim");return;}
+  print(`No dojo explainer for "${args[0]}". Try: pod, deployment, service, scheduler, probes, resources...`,"warnl");
+}
+
+function kCordon(args,uncordon){
+  const n=state.nodes.find(x=>x.name===args[0]);
+  if(!n)return print(`Error from server (NotFound): nodes "${args[0]}" not found`,"err");
+  n.schedulable=uncordon;
+  ev(`${uncordon?"Uncordoned":"Cordoned"} ${n.name}`,uncordon?"good":"warn");
+  print(`node/${n.name} ${uncordon?"uncordoned":"cordoned"}`,"ok");
+  if(!uncordon)print(`↳ the scheduler will place no new pods here. Existing pods stay. Try scaling up a deployment.`,"info");
+}
+function kDrain(args){
+  const n=state.nodes.find(x=>x.name===args[0]);
+  if(!n)return print(`Error from server (NotFound): nodes "${args[0]}" not found`,"err");
+  n.schedulable=false;
+  const moved=state.pods.filter(p=>p.node===n.name&&p.ownerDep&&p.ns==="default");
+  moved.forEach(p=>{p.status="Terminating";p.termAt=CLK;});
+  ev(`Drained ${n.name}: evicted ${moved.length} pod(s), cordoned`,"warn");
+  print(`node/${n.name} cordoned`,"ok");
+  print(`evicting ${moved.length} pod(s) — controllers will reschedule them onto other nodes`,"info");
+}
+function kRollout(args){
+  const sub=args[0];const t=args[1]||"";const name=t.split("/")[1]||args[2];
+  const d=state.deployments.find(x=>x.name===name);
+  if(sub==="restart"){
+    if(!d)return print(`Error from server (NotFound): deployments "${name}" not found`,"err");
+    state.pods.filter(p=>p.ownerDep===d.name).forEach(p=>{p.status="Terminating";p.termAt=CLK;});
+    ev(`rollout restart deployment/${d.name}`,"good");
+    return print(`deployment.apps/${d.name} restarted`,"ok");
+  }
+  if(sub==="status"){
+    if(!d)return print(`Error from server (NotFound): deployments "${name}" not found`,"err");
+    const r=podsOf(d.name).filter(p=>p.status==="Running").length;
+    return print(r>=d.replicas?`deployment "${d.name}" successfully rolled out`:`Waiting for rollout: ${r} of ${d.replicas} updated replicas are available...`,r>=d.replicas?"ok":"warnl");
+  }
+  print('Usage: kubectl rollout status|restart deployment/<name>',"warnl");
+}
+function kApiResources(){
+  const rows=[["pods","po","v1"],["services","svc","v1"],["deployments","deploy","apps/v1"],["replicasets","rs","apps/v1"],["statefulsets","sts","apps/v1"],["daemonsets","ds","apps/v1"],["jobs","","batch/v1"],["configmaps","cm","v1"],["secrets","","v1"],["nodes","no","v1"]];
+  printRaw(`<span class="tbl">${escapeHtml(pad("NAME",16)+pad("SHORT",8)+"APIVERSION")}</span>`);
+  rows.forEach(r=>print(pad(r[0],16)+pad(r[1]||"",8)+r[2],"dim"));
+}
+
+function help(){
+  const lines=[
+    ["kubectl get pods [-o wide] [-A] [-l app=web]","list pods (try -o wide for nodes)"],
+    ["kubectl get nodes|deployments|services|events","list other resources"],
+    ["kubectl describe pod <name>","deep detail + events for a pod"],
+    ["kubectl scale deployment web --replicas=5","change desired replica count"],
+    ["kubectl delete pod <name>","delete a pod (watch it self-heal!)"],
+    ["kubectl delete deployment <name>","remove a deployment + its pods"],
+    ["kubectl run <name> --image=nginx","create a single bare pod"],
+    ["kubectl create deployment <n> --image=<i> --replicas=N","create a deployment"],
+    ["kubectl expose deployment <name> --port=80","create a Service in front of it"],
+    ["kubectl logs <pod>","print a running pod's logs"],
+    ["kubectl cordon|uncordon|drain <node>","control scheduling on a node"],
+    ["kubectl rollout restart|status deployment/<n>","restart or check a rollout"],
+    ["kubectl explain <resource>","quick dojo definition"],
+    ["reset  /  clear","reset the cluster / clear the screen"],
+  ];
+  print("Simulated kubectl — supported commands:","info");
+  lines.forEach(l=>printRaw(`  <span class="ok">${escapeHtml(l[0])}</span>`+`\n  <span class="dim">   ${escapeHtml(l[1])}</span>`));
+  print("","");
+  print("Tip: try  kubectl delete pod <name>  on a deployment-owned pod and watch the controller recreate it.","info");
+}
+
+function resetCluster(){
+  state.deployments=[
+    {name:"web",image:"nginx:1.27",replicas:2,labels:{app:"web"}},
+    {name:"redis",image:"redis:7",replicas:1,labels:{app:"redis"}},
+  ];
+  state.services=[
+    {name:"web",type:"ClusterIP",selector:{app:"web"},port:80,ip:"10.96.0.14",created:0},
+    {name:"kubernetes",type:"ClusterIP",selector:{},port:443,ip:"10.96.0.1",created:0},
+  ];
+  state.pods=state.pods.filter(p=>p.system);
+  state.nodes.forEach(n=>{n.schedulable=true;n.ready=true;});
+  state.events=[];
+  render();
+}
+
+/* terminal input handling */
+const input=$("#terminput");
+$("#termform").addEventListener("submit",e=>{e.preventDefault();const v=input.value;input.value="";run(v);});
+input.addEventListener("keydown",e=>{
+  if(e.key==="ArrowUp"){e.preventDefault();if(hIdx<HISTORY.length-1){hIdx++;input.value=HISTORY[hIdx]||"";}}
+  else if(e.key==="ArrowDown"){e.preventDefault();if(hIdx>0){hIdx--;input.value=HISTORY[hIdx]||"";}else{hIdx=-1;input.value="";}}
+});
+// quick chips
+const CHIPS=["kubectl get pods","kubectl get pods -o wide","kubectl scale deployment web --replicas=5","kubectl delete pod","kubectl create deployment api --image=nginx --replicas=3","kubectl cordon worker-c","kubectl run oops --image=notreal","help"];
+const chipsWrap=$("#chips");
+CHIPS.forEach(c=>{const b=el("button","chip",c);b.addEventListener("click",()=>{input.value=c+(c==="kubectl delete pod"?" ":"");input.focus();});chipsWrap.appendChild(b);});
+
+function runFromConcept(cmd){
+  switchTab("lab");
+  setTimeout(()=>{input.focus();if(cmd.includes("<")){input.value=cmd;}else{run(cmd);}},350);
+}
+
+/* ============================ CONCEPTS UI ============================ */
+const readSet=loadProgress();
+function loadProgress(){try{const s=JSON.parse(localStorage.getItem("k8sdojo")||"{}");return new Set(s.read||[]);}catch(e){return new Set();}}
+function saveProgress(){try{localStorage.setItem("k8sdojo",JSON.stringify({read:[...readSet],score:trialScore,answered:[...answered]}));}catch(e){}}
+
+function renderConcepts(){
+  const wrap=$("#belts");wrap.innerHTML="";
+  BELTS.forEach(b=>{
+    const list=C.filter(c=>c.belt===b.id);
+    if(!list.length)return;
+    const head=el("div","belt-head");
+    const dot=el("div","bdot");dot.style.background=b.color;head.appendChild(dot);
+    const h=el("h3");h.textContent=`${b.name} belt`;head.appendChild(h);
+    const line=el("div","line");head.appendChild(line);
+    const cnt=el("div","count");
+    const done=list.filter(c=>readSet.has(c.id)).length;
+    cnt.textContent=`${done}/${list.length} · ${b.desc}`;head.appendChild(cnt);
+    wrap.appendChild(head);
+    const grid=el("div","grid");
+    list.forEach(c=>{
+      const card=el("button","ccard"+(readSet.has(c.id)?" read":""));
+      const bar=el("div","beltbar");bar.style.background=b.color;card.appendChild(bar);
+      card.appendChild(el("div","k",c.kind));
+      const t=el("h4");t.textContent=c.name;card.appendChild(t);
+      const p=el("p");p.textContent=c.tldr;card.appendChild(p);
+      const chk=el("div","done","✓ studied");card.appendChild(chk);
+      card.addEventListener("click",()=>openConcept(c.id));
+      grid.appendChild(card);
+    });
+    wrap.appendChild(grid);
+  });
+  updateRank();
+}
+
+const sheet=$("#sheet"),scrim=$("#scrim"),sheetin=$("#sheetin");
+function highlightYaml(y){
+  return escapeHtml(y).split("\n").map(line=>{
+    if(line.trim().startsWith("#"))return `<span class="c">${line}</span>`;
+    return line.replace(/^(\s*)([\w.\/-]+)(:)/,'$1<span class="kk">$2</span>$3');
+  }).join("\n");
+}
+function openConcept(id){
+  const c=C.find(x=>x.id===id);if(!c)return;
+  const b=BELTS.find(x=>x.id===c.belt);
+  sheetin.innerHTML="";
+  const close=el("button","iconbtn close","✕");close.setAttribute("aria-label","Close");close.addEventListener("click",closeSheet);
+  sheetin.appendChild(close);
+  const tag=el("div","belttag");const d=el("span","d");d.style.background=b.color;tag.appendChild(d);
+  tag.appendChild(document.createTextNode(`${b.name} belt · ${c.kind}`));sheetin.appendChild(tag);
+  const h=el("h2");h.textContent=c.name;sheetin.appendChild(h);
+  const tl=el("div","tl");tl.textContent=c.tldr;sheetin.appendChild(tl);
+
+  const mkBlock=(label,node)=>{const bl=el("div","block");const hh=el("div","h",label);bl.appendChild(hh);bl.appendChild(node);sheetin.appendChild(bl);};
+  const an=el("div","analogy");an.innerHTML=`<span class="q">Mental model</span>${escapeHtml(c.analogy)}`;
+  const anB=el("div","block");const anH=el("div","h","The mental model");anB.appendChild(anH);anB.appendChild(an);sheetin.appendChild(anB);
+  const whyP=el("p");whyP.textContent=c.why;mkBlock("Why it exists",whyP);
+  const ul=el("ul","gotchas");c.gotchas.forEach(g=>{const li=el("li");li.innerHTML=g;ul.appendChild(li);});mkBlock("Gotchas that bite",ul);
+  const pre=el("pre");pre.innerHTML=highlightYaml(c.yaml);mkBlock("Manifest",pre);
+  const cm=el("div","cmds");c.cmds.forEach(cd=>{const code=el("code");code.innerHTML=escapeHtml(cd).replace(/^(\w+)/,'<b>$1</b>');cm.appendChild(code);});
+  mkBlock("Practice in the lab",cm);
+  if(c.cmds[0]&&!c.cmds[0].includes("--raw")){
+    const tb=el("button","trybtn",`▶ Run "${c.cmds.find(x=>!x.includes("<"))||c.cmds[0]}" in the Lab`);
+    const runnable=c.cmds.find(x=>!x.includes("<"))||c.cmds[0];
+    tb.addEventListener("click",()=>{closeSheet();runFromConcept(runnable);});
+    sheetin.appendChild(tb);
+  }
+  scrim.classList.add("on");sheet.classList.add("on");sheet.setAttribute("aria-hidden","false");
+  sheet.scrollTop=0;
+  if(!readSet.has(id)){readSet.add(id);saveProgress();
+    // re-mark card
+    renderConcepts();
+  }
+}
+function closeSheet(){scrim.classList.remove("on");sheet.classList.remove("on");sheet.setAttribute("aria-hidden","true");}
+scrim.addEventListener("click",closeSheet);
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet();});
+
+/* ============================ TRIALS UI ============================ */
+let trialScore=0;const answered=new Set();
+(function initScore(){try{const s=JSON.parse(localStorage.getItem("k8sdojo")||"{}");trialScore=s.score||0;(s.answered||[]).forEach(a=>answered.add(a));}catch(e){}})();
+
+function renderTrials(){
+  const wrap=$("#trials");wrap.innerHTML="";
+  $("#scoreT").textContent=TRIALS.length;
+  TRIALS.forEach((t,i)=>{
+    const q=el("div","q");
+    const k=el("div","qk");k.innerHTML=`<span>Trial ${String(i+1).padStart(2,"0")}</span><span class="kind">${t.kind==="debug"?"fix the manifest":"concept"}</span>`;q.appendChild(k);
+    const h=el("h4");h.innerHTML=t.q;q.appendChild(h);
+    if(t.code){const pre=el("pre");pre.innerHTML=highlightYaml(t.code);q.appendChild(pre);}
+    const opts=el("div","opts");
+    t.opts.forEach((o,oi)=>{
+      const btn=el("button","opt");
+      const mk=el("span","mk",String.fromCharCode(65+oi));btn.appendChild(mk);
+      const sp=el("span");sp.innerHTML=o;btn.appendChild(sp);
+      btn.addEventListener("click",()=>answer(q,t,i,oi));
+      if(answered.has(i)){btn.disabled=true;if(oi===t.a)btn.classList.add("correct");}
+      opts.appendChild(btn);
+    });
+    q.appendChild(opts);
+    const ex=el("div","expl"+(answered.has(i)?" show":""));ex.innerHTML=t.expl;q.appendChild(ex);
+    wrap.appendChild(q);
+  });
+  updateScore();
+}
+function answer(q,t,i,oi){
+  if(answered.has(i))return;
+  answered.add(i);
+  const btns=$$(".opt",q);
+  btns.forEach((b,bi)=>{b.disabled=true;if(bi===t.a)b.classList.add("correct");if(bi===oi&&oi!==t.a)b.classList.add("wrong");});
+  if(oi===t.a)trialScore++;
+  $(".expl",q).classList.add("show");
+  saveProgress();updateScore();updateRank();
+}
+function updateScore(){
+  $("#scoreN").textContent=trialScore;
+  const badges=$("#badges");badges.innerHTML="";
+  [["First blood",trialScore>=1],["Half mast",trialScore>=Math.ceil(TRIALS.length/2)],["Full sweep",trialScore>=TRIALS.length]].forEach(([n,on])=>{
+    const b=el("span","badge"+(on?" on":""),n);badges.appendChild(b);
+  });
+  const msg=$("#scoreMsg");
+  if(answered.size===0)msg.textContent="Answer the trials below. Correct answers count toward your rank.";
+  else if(trialScore===TRIALS.length)msg.textContent="Flawless. You read the cluster like a black belt.";
+  else msg.textContent=`${trialScore} correct so far. Wrong answers reveal the reasoning — that's the point.`;
+}
+
+/* ============================ RANK ============================ */
+function updateRank(){
+  const totalItems=C.length+TRIALS.length;
+  const done=readSet.size+trialScore;
+  const pct=Math.round(done/totalItems*100);
+  $("#progbar").style.width=pct+"%";
+  const idx=Math.min(BELTS.length-1,Math.floor(pct/ (100/BELTS.length)));
+  const belt=BELTS[Math.max(0,pct===0?0:idx)];
+  $("#rankname").textContent=belt.name;
+  $("#rankdot").style.background=belt.color;
+  $("#rankdot").style.borderColor=belt.color;
+}
+
+/* ============================ TABS ============================ */
+function switchTab(name){
+  $$(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===name?"true":"false"));
+  $$(".panel").forEach(p=>p.classList.toggle("on",p.id==="p-"+name));
+  if(name==="lab")setTimeout(()=>input.focus(),100);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$("#tabs").addEventListener("click",e=>{const t=e.target.closest(".tab");if(t)switchTab(t.dataset.tab);});
+// concept links from control-plane components
+$$(".comp").forEach(c=>c.addEventListener("click",()=>{switchTab("concepts");setTimeout(()=>openConcept(c.dataset.concept),200);}));
+
+/* ============================ THEME ============================ */
+const themeBtn=$("#themebtn");
+themeBtn.addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const isDark=cur?cur==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme",isDark?"light":"dark");
+});
+
+/* ============================ SONAR CANVAS ============================ */
+(function sonar(){
+  const cv=$("#sonar");if(!cv)return;const ctx=cv.getContext("2d");
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){return;}
+  let a=0;
+  function acc(){return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()||"#2fd4c4";}
+  function draw(){
+    ctx.clearRect(0,0,200,200);const cx=100,cy=100;
+    ctx.strokeStyle=acc();ctx.globalAlpha=.25;
+    for(let r=20;r<=90;r+=23){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();}
+    ctx.globalAlpha=.9;const grad=ctx.createLinearGradient(cx,cy,cx+Math.cos(a)*90,cy+Math.sin(a)*90);
+    grad.addColorStop(0,acc());grad.addColorStop(1,"transparent");
+    ctx.strokeStyle=grad;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*90,cy+Math.sin(a)*90);ctx.stroke();
+    ctx.globalAlpha=1;a+=0.03;requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ============================ BOOT ============================ */
+renderConcepts();
+renderTrials();
+// prime the cluster: schedule initial pods immediately then loop
+reconcile();
+print("K8s Dojo terminal — a simulated cluster with a live reconcile loop.","info");
+print('Type "help" for commands, or click a chip below. Try: kubectl get pods','dim');
+setInterval(reconcile,2600);
+</script>
+</body>
+</html>
