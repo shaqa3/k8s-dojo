@@ -331,9 +331,30 @@ pre .vv{color:var(--accent)}
 .tiprow{display:flex;gap:9px;font-size:13px;color:var(--muted);padding:5px 0;line-height:1.5}
 .tiprow::before{content:"▸";color:var(--accent);flex:none}
 .tiprow b{color:var(--ink);font-family:var(--mono);font-weight:400}
-.wlead{color:var(--muted);font-size:14px;margin:6px 0 0}
-.whint{color:var(--muted);font-size:12.5px;margin:18px 0 0}
-.wcta{margin-top:16px;width:100%;font-family:var(--mono);font-size:14px;padding:12px 16px;border-radius:11px;
+.modal.welcome{max-width:600px;padding:0;overflow:hidden}
+.welcome-hero{padding:32px 30px 20px;text-align:center;position:relative;
+  background:radial-gradient(120% 130% at 50% -25%, color-mix(in srgb,var(--blue) 20%,transparent), transparent 62%)}
+.welcome-hero .whelm{width:56px;height:56px;margin:0 auto 14px;display:block}
+.welcome-hero .eyebrow{display:block;margin-bottom:10px}
+.welcome-hero h2{font-size:27px;letter-spacing:-.02em}
+.wlead{color:var(--muted);font-size:14.5px;max-width:48ch;margin:8px auto 0}
+.welcome-body{padding:4px 30px 28px}
+.belt-journey{margin:2px 0 22px}
+.bj-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--faint);text-align:center;margin-bottom:14px}
+.bj-belts{display:flex;align-items:flex-start;justify-content:space-between;gap:4px;max-width:410px;margin:0 auto;position:relative}
+.bj-belts::before{content:"";position:absolute;left:9px;right:9px;top:9px;height:2px;
+  background:linear-gradient(90deg,#e8edf1,#f5d24a,#f2953f,#46d19e,#4d8bf0,#b07a52,#7f8c99);border-radius:2px;opacity:.55}
+.bj-belt{display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;flex:1}
+.bj-belt .d{width:18px;height:18px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border)}
+.bj-belt .n{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.02em}
+.welcome-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+@media(max-width:520px){.welcome-tabs{grid-template-columns:1fr}}
+.wtab{border:1px solid var(--border);border-radius:11px;background:var(--surface-2);padding:14px 13px}
+.wtab .wt-i{font-family:var(--mono);font-size:15px;color:var(--accent);margin-bottom:7px}
+.wtab .wt-t{font-family:var(--mono);font-size:12px;color:var(--ink);margin-bottom:4px}
+.wtab .wt-d{font-size:11.5px;color:var(--muted);line-height:1.45}
+.whint{color:var(--muted);font-size:12.5px;margin:0 0 4px;text-align:center}
+.wcta{margin-top:12px;width:100%;font-family:var(--mono);font-size:14px;padding:13px 16px;border-radius:11px;
   border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);transition:.15s}
 .wcta:hover{background:color-mix(in srgb,var(--accent) 26%,transparent);transform:translateY(-1px)}
 footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color:var(--faint);
@@ -601,16 +622,48 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
 <div class="overlay" id="welcomeoverlay" aria-hidden="true">
   <div class="modal welcome" role="dialog" aria-modal="true" aria-label="Welcome to K8s Dojo">
     <button class="iconbtn close" id="welcomeclose" aria-label="Close">✕</button>
-    <span class="eyebrow">Welcome aboard</span>
-    <h2>Steer your first cluster</h2>
-    <p class="wlead">K8s Dojo teaches Kubernetes the way it actually thinks — by letting you drive it. Three ways in:</p>
-    <div class="ksec" style="margin-top:14px">
-      <div class="tiprow"><b>Concepts</b> — 32 belt-ranked deep dives, each with the real mechanism, the gotchas, and a quiz to master it.</div>
-      <div class="tiprow"><b>Cluster Lab</b> — a live cluster and a simulated kubectl that reconciles as you type. Delete a pod, watch it heal.</div>
-      <div class="tiprow"><b>Trials &amp; RBAC</b> — fix broken manifests, and probe who-can-do-what with a can-i simulator.</div>
+    <div class="welcome-hero">
+      <svg class="whelm" viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="var(--accent)" stroke-width="4">
+          <circle cx="50" cy="50" r="20"/>
+          <circle cx="50" cy="50" r="7" fill="var(--accent)" stroke="none"/>
+          <line x1="50" y1="30" x2="50" y2="8"/><line x1="50" y1="70" x2="50" y2="92"/>
+          <line x1="30" y1="50" x2="8" y2="50"/><line x1="70" y1="50" x2="92" y2="50"/>
+          <line x1="64" y1="36" x2="80" y2="20"/><line x1="36" y1="64" x2="20" y2="80"/>
+          <line x1="64" y1="64" x2="80" y2="80"/><line x1="36" y1="36" x2="20" y2="20"/>
+          <g fill="var(--accent)" stroke="none">
+            <circle cx="50" cy="8" r="5"/><circle cx="50" cy="92" r="5"/>
+            <circle cx="8" cy="50" r="5"/><circle cx="92" cy="50" r="5"/>
+            <circle cx="80" cy="20" r="4"/><circle cx="20" cy="80" r="4"/>
+            <circle cx="80" cy="80" r="4"/><circle cx="20" cy="20" r="4"/>
+          </g>
+        </g>
+      </svg>
+      <span class="eyebrow">Welcome aboard · K8s Dojo</span>
+      <h2>Steer your first cluster</h2>
+      <p class="wlead">Kubernetes, learned the way it actually thinks — by driving it. Earn belts as you go, from your first Pod to production-grade RBAC.</p>
     </div>
-    <p class="whint">Press <kbd>?</kbd> anytime for shortcuts and tips.</p>
-    <button class="wcta" id="welcomecta">Enter the dojo →</button>
+    <div class="welcome-body">
+      <div class="belt-journey">
+        <div class="bj-label">Your path — earn belts as you master concepts</div>
+        <div class="bj-belts">
+          <div class="bj-belt"><span class="d" style="background:#e8edf1"></span><span class="n">White</span></div>
+          <div class="bj-belt"><span class="d" style="background:#f5d24a"></span><span class="n">Yellow</span></div>
+          <div class="bj-belt"><span class="d" style="background:#f2953f"></span><span class="n">Orange</span></div>
+          <div class="bj-belt"><span class="d" style="background:#46d19e"></span><span class="n">Green</span></div>
+          <div class="bj-belt"><span class="d" style="background:#4d8bf0"></span><span class="n">Blue</span></div>
+          <div class="bj-belt"><span class="d" style="background:#b07a52"></span><span class="n">Brown</span></div>
+          <div class="bj-belt"><span class="d" style="background:var(--ink)"></span><span class="n">Black</span></div>
+        </div>
+      </div>
+      <div class="welcome-tabs">
+        <div class="wtab"><div class="wt-i">◆</div><div class="wt-t">Concepts</div><div class="wt-d">32 belt-ranked deep dives, each with a quiz to master it.</div></div>
+        <div class="wtab"><div class="wt-i">⎈</div><div class="wt-t">Cluster Lab</div><div class="wt-d">A live cluster + kubectl that reconciles as you type.</div></div>
+        <div class="wtab"><div class="wt-i">⚑</div><div class="wt-t">Trials &amp; RBAC</div><div class="wt-d">Fix broken manifests; probe who-can-do-what.</div></div>
+      </div>
+      <p class="whint">Press <kbd>?</kbd> anytime for shortcuts and tips.</p>
+      <button class="wcta" id="welcomecta">Enter the dojo →</button>
+    </div>
   </div>
 </div>
 
