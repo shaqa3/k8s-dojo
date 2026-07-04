@@ -110,6 +110,15 @@ main{padding:26px 0 90px}
 .belt-head .count{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
 .belt-head .line{height:1px;flex:1;background:var(--border)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.searchbox{position:relative;display:flex;align-items:center;margin-bottom:12px;max-width:440px}
+.searchbox .sicon{position:absolute;left:13px;color:var(--faint);font-size:15px;pointer-events:none}
+.searchbox input{width:100%;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px 10px 36px;outline:none;transition:.15s}
+.searchbox input::placeholder{color:var(--faint)}
+.searchbox input:focus{border-color:var(--accent)}
+.noresults{font-size:14px;color:var(--muted);padding:26px 4px;text-align:center}
+.noresults b{color:var(--ink);font-family:var(--mono)}
+.linkbtn{background:none;border:none;color:var(--accent);font-family:var(--mono);font-size:13px;text-decoration:underline;padding:0;cursor:pointer}
 .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
 .fchip{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;padding:7px 13px;border-radius:999px;
   border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:.15s}
@@ -414,6 +423,10 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <div class="eyebrow">Kubernetes · from helmsman to black belt</div>
       <h2>Learn the cluster the way it actually thinks.</h2>
       <p>Kubernetes is Greek for <em>helmsman</em> — the pilot who steers a ship of containers. Work through the belts below: each card opens a deep dive with the mental model, the reason it exists, the gotchas that bite people, and a real manifest. Then take the helm in the <b>Cluster Lab</b>.</p>
+    </div>
+    <div class="searchbox">
+      <span class="sicon" aria-hidden="true">⌕</span>
+      <input id="conceptsearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search concepts — try &quot;oomkill&quot;, &quot;dns&quot;, &quot;scheduler&quot;…" aria-label="Search concepts">
     </div>
     <div class="filterbar" id="beltfilter" role="tablist" aria-label="Filter concepts by belt"></div>
     <div id="belts"></div>
@@ -1504,6 +1517,12 @@ function loadMaster(){try{const s=JSON.parse(localStorage.getItem("k8sdojo")||"{
 function saveProgress(){try{localStorage.setItem("k8sdojo",JSON.stringify({read:[...readSet],mastered:[...masterSet],score:trialScore,answered:[...answered]}));}catch(e){}}
 
 let activeBelt=null;
+let searchQ="";
+function matchConcept(c,q){
+  if(!q)return true;
+  if(!c._hay)c._hay=[c.name,c.kind,c.tldr,c.underHood,c.analogy,c.why,(c.gotchas||[]).join(" "),(c.related||[]).join(" ")].join(" ").toLowerCase();
+  return c._hay.includes(q);
+}
 function renderBeltFilter(){
   const fb=$("#beltfilter");if(!fb)return;fb.innerHTML="";
   const mkChip=(id,name,color,done,total)=>{
@@ -1522,17 +1541,21 @@ function renderBeltFilter(){
 function renderConcepts(){
   renderBeltFilter();
   const wrap=$("#belts");wrap.innerHTML="";
+  let shown=0;
   BELTS.forEach(b=>{
     if(activeBelt&&b.id!==activeBelt)return;
-    const list=C.filter(c=>c.belt===b.id);
+    const fullList=C.filter(c=>c.belt===b.id);
+    if(!fullList.length)return;
+    const list=fullList.filter(c=>matchConcept(c,searchQ));
     if(!list.length)return;
+    shown+=list.length;
     const head=el("div","belt-head");
     const dot=el("div","bdot");dot.style.background=b.color;head.appendChild(dot);
     const h=el("h3");h.textContent=`${b.name} belt`;head.appendChild(h);
     const line=el("div","line");head.appendChild(line);
     const cnt=el("div","count");
-    const done=list.filter(c=>readSet.has(c.id)).length;
-    cnt.textContent=`${done}/${list.length} · ${b.desc}`;head.appendChild(cnt);
+    const done=fullList.filter(c=>readSet.has(c.id)).length;
+    cnt.textContent=`${done}/${fullList.length} · ${b.desc}`;head.appendChild(cnt);
     wrap.appendChild(head);
     const grid=el("div","grid");
     list.forEach(c=>{
@@ -1547,8 +1570,15 @@ function renderConcepts(){
     });
     wrap.appendChild(grid);
   });
+  if(!shown){
+    const ne=el("div","noresults");
+    ne.innerHTML=`No concepts match <b>${escapeHtml(searchQ)}</b>${activeBelt?` in the ${activeBelt} belt`:""}. <button class="linkbtn" id="clrsearch">clear filters</button>`;
+    wrap.appendChild(ne);
+    const cb=$("#clrsearch");if(cb)cb.addEventListener("click",clearConceptFilters);
+  }
   updateRank();
 }
+function clearConceptFilters(){searchQ="";activeBelt=null;const si=$("#conceptsearch");if(si)si.value="";renderConcepts();}
 
 const sheet=$("#sheet"),scrim=$("#scrim"),sheetin=$("#sheetin");
 function highlightYaml(y){
@@ -1852,6 +1882,8 @@ themeBtn.addEventListener("click",()=>{
 })();
 
 /* ============================ BOOT ============================ */
+$("#conceptsearch").addEventListener("input",e=>{searchQ=e.target.value.trim().toLowerCase();renderConcepts();});
+$("#conceptsearch").addEventListener("keydown",e=>{if(e.key==="Escape"){e.stopPropagation();e.target.value="";searchQ="";renderConcepts();}});
 renderConcepts();
 renderTrials();
 renderRBAC();
