@@ -309,6 +309,28 @@ pre .vv{color:var(--accent)}
 .expl.show{display:block;animation:fade .3s}
 .expl b{color:var(--ink)}
 
+.overlay{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;
+  background:rgba(4,8,12,.66);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:.22s}
+.overlay.on{opacity:1;pointer-events:auto}
+.modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:var(--shadow);
+  max-width:520px;width:100%;max-height:86vh;overflow-y:auto;padding:26px 28px 30px;position:relative;
+  transform:translateY(10px) scale(.98);transition:transform .22s}
+.overlay.on .modal{transform:none}
+.modal .close{position:absolute;top:15px;right:15px}
+.modal h2{font-size:21px;letter-spacing:-.01em;margin-bottom:2px}
+.modal .eyebrow{display:block;margin-bottom:6px}
+.ksec{margin-top:20px}
+.ksec h3{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);
+  margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.ksec h3::before{content:"";width:14px;height:1px;background:var(--accent)}
+.krow{display:flex;align-items:baseline;gap:12px;padding:6px 0;font-size:13.5px}
+.krow .keys{flex:none;display:flex;gap:5px;min-width:80px}
+.krow kbd,.modal kbd{font-family:var(--mono);font-size:11px;color:var(--ink);border:1px solid var(--border-strong);
+  border-bottom-width:2px;border-radius:6px;padding:2px 7px;background:var(--surface-2);white-space:nowrap}
+.krow .kdesc{color:var(--muted)}
+.tiprow{display:flex;gap:9px;font-size:13px;color:var(--muted);padding:5px 0;line-height:1.5}
+.tiprow::before{content:"▸";color:var(--accent);flex:none}
+.tiprow b{color:var(--ink);font-family:var(--mono);font-weight:400}
 footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color:var(--faint);
   font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 /* ---- concept depth blocks ---- */
@@ -420,6 +442,7 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
           <span class="lbl"><b id="rankname">White</b> belt</span>
         </div>
         <div class="prog" title="Mastery"><i id="progbar"></i></div>
+        <button class="iconbtn" id="helpbtn" aria-label="Keyboard shortcuts and tips" title="Shortcuts &amp; tips  ( ? )">?</button>
         <button class="iconbtn" id="themebtn" aria-label="Toggle light and dark theme" title="Toggle theme">◑</button>
       </div>
     </div>
@@ -547,6 +570,28 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
 
 <div class="scrim" id="scrim"></div>
 <aside class="sheet" id="sheet" aria-hidden="true"><div class="sheet-in" id="sheetin"></div></aside>
+
+<div class="overlay" id="helpoverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts and tips">
+    <button class="iconbtn close" id="helpclose" aria-label="Close">✕</button>
+    <span class="eyebrow">K8s Dojo</span>
+    <h2>Shortcuts &amp; tips</h2>
+    <div class="ksec">
+      <h3>Keyboard</h3>
+      <div class="krow"><span class="keys"><kbd>/</kbd></span><span class="kdesc">Focus concept search</span></div>
+      <div class="krow"><span class="keys"><kbd>?</kbd></span><span class="kdesc">Open this help</span></div>
+      <div class="krow"><span class="keys"><kbd>Esc</kbd></span><span class="kdesc">Close panels · clear search</span></div>
+      <div class="krow"><span class="keys"><kbd>↑</kbd><kbd>↓</kbd></span><span class="kdesc">Cycle command history in the terminal</span></div>
+    </div>
+    <div class="ksec">
+      <h3>Getting around</h3>
+      <div class="tiprow">Click a control-plane component (<b>api-server</b>, <b>etcd</b>…) to open its deep dive.</div>
+      <div class="tiprow">In the Cluster Lab, run <b>kubectl delete pod &lt;name&gt;</b> and watch a controller heal it.</div>
+      <div class="tiprow">Pass a concept's <b>Test yourself</b> quiz to master it and raise your belt.</div>
+      <div class="tiprow">Use <b>Study next</b> to walk the curriculum in belt order, or the <b>RBAC</b> tab to probe permissions.</div>
+    </div>
+  </div>
+</div>
 
 <footer class="wrap">K8s Dojo · a training bridge for Kubernetes · steer the ship, don't just read the manual</footer>
 
@@ -1711,7 +1756,7 @@ function openConcept(id){
 }
 function closeSheet(){scrim.classList.remove("on");sheet.classList.remove("on");sheet.setAttribute("aria-hidden","true");}
 scrim.addEventListener("click",closeSheet);
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeHelp();}});
 document.addEventListener("keydown",e=>{
   if(e.key!=="/"||e.metaKey||e.ctrlKey||e.altKey)return;
   const t=e.target,tag=(t.tagName||"").toLowerCase();
@@ -1720,6 +1765,17 @@ document.addEventListener("keydown",e=>{
   switchTab("concepts");
   const si=$("#conceptsearch");if(si)setTimeout(()=>si.focus(),60);
 });
+function openHelp(){const o=$("#helpoverlay");if(o){o.classList.add("on");o.setAttribute("aria-hidden","false");}}
+function closeHelp(){const o=$("#helpoverlay");if(o){o.classList.remove("on");o.setAttribute("aria-hidden","true");}}
+document.addEventListener("keydown",e=>{
+  if(e.key!=="?"||e.metaKey||e.ctrlKey||e.altKey)return;
+  const t=e.target,tag=(t.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea"||tag==="select"||t.isContentEditable)return;
+  e.preventDefault();openHelp();
+});
+$("#helpbtn").addEventListener("click",openHelp);
+$("#helpclose").addEventListener("click",closeHelp);
+$("#helpoverlay").addEventListener("click",e=>{if(e.target===$("#helpoverlay"))closeHelp();});
 
 /* ============================ TRIALS UI ============================ */
 let trialScore=0;const answered=new Set();
