@@ -127,9 +127,12 @@ main{padding:26px 0 90px}
 .searchbox{position:relative;display:flex;align-items:center;margin-bottom:12px;max-width:440px}
 .searchbox .sicon{position:absolute;left:13px;color:var(--faint);font-size:15px;pointer-events:none}
 .searchbox input{width:100%;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--surface);
-  border:1px solid var(--border);border-radius:10px;padding:10px 12px 10px 36px;outline:none;transition:.15s}
+  border:1px solid var(--border);border-radius:10px;padding:10px 34px 10px 36px;outline:none;transition:.15s}
 .searchbox input::placeholder{color:var(--faint)}
 .searchbox input:focus{border-color:var(--accent)}
+.skbd{position:absolute;right:10px;font-family:var(--mono);font-size:11px;color:var(--faint);border:1px solid var(--border);
+  border-radius:5px;padding:1px 6px;pointer-events:none;background:var(--surface-2);transition:opacity .15s}
+.searchbox input:focus~.skbd,.searchbox input:not(:placeholder-shown)~.skbd{opacity:0}
 .noresults{font-size:14px;color:var(--muted);padding:26px 4px;text-align:center}
 .noresults b{color:var(--ink);font-family:var(--mono)}
 .linkbtn{background:none;border:none;color:var(--accent);font-family:var(--mono);font-size:13px;text-decoration:underline;padding:0;cursor:pointer}
@@ -443,6 +446,7 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <div class="searchbox">
         <span class="sicon" aria-hidden="true">⌕</span>
         <input id="conceptsearch" type="search" autocomplete="off" spellcheck="false" placeholder="Search concepts — try &quot;oomkill&quot;, &quot;dns&quot;, &quot;scheduler&quot;…" aria-label="Search concepts">
+        <kbd class="skbd" aria-hidden="true">/</kbd>
       </div>
       <div class="segmented" id="statustoggle" role="tablist" aria-label="Filter by mastery">
         <button class="seg" data-status="all" role="tab" aria-selected="true">All <span class="segn"></span></button>
@@ -1708,6 +1712,14 @@ function openConcept(id){
 function closeSheet(){scrim.classList.remove("on");sheet.classList.remove("on");sheet.setAttribute("aria-hidden","true");}
 scrim.addEventListener("click",closeSheet);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet();});
+document.addEventListener("keydown",e=>{
+  if(e.key!=="/"||e.metaKey||e.ctrlKey||e.altKey)return;
+  const t=e.target,tag=(t.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea"||tag==="select"||t.isContentEditable)return;
+  e.preventDefault();
+  switchTab("concepts");
+  const si=$("#conceptsearch");if(si)setTimeout(()=>si.focus(),60);
+});
 
 /* ============================ TRIALS UI ============================ */
 let trialScore=0;const answered=new Set();
