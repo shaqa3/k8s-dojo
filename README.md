@@ -2,6 +2,8 @@
 
 An interactive Kubernetes training bridge — learn the cluster the way it actually thinks. A single, self-contained HTML page. No build step, no dependencies, no network.
 
+**🔗 Live: https://shaqa3.github.io/k8s-dojo/**
+
 ## Run it
 
 Just open the file:
