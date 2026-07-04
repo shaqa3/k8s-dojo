@@ -277,6 +277,55 @@ pre .vv{color:var(--accent)}
 
 footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color:var(--faint);
   font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+/* ---- rbac ---- */
+.rbac{display:flex;flex-direction:column;gap:16px}
+.rbac-q{padding:22px 24px}
+.rbac-sentence{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:19px;letter-spacing:-.01em}
+.rbac-sentence .w{color:var(--muted)}
+.rsel{position:relative;display:inline-flex}
+.rsel select{appearance:none;font-family:var(--mono);font-size:14px;color:var(--accent);background:var(--surface-2);
+  border:1px solid var(--border-strong);border-radius:9px;padding:8px 30px 8px 12px;cursor:pointer;outline:none}
+.rsel select:hover{border-color:var(--accent)}
+.rsel select:focus-visible{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:1px}
+.rsel::after{content:"▾";position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:11px}
+.verdict{margin-top:20px;border-radius:12px;border:1px solid var(--border);padding:18px 20px;display:flex;flex-direction:column;gap:11px;transition:.2s;background:var(--surface-2)}
+.verdict.allow{border-color:color-mix(in srgb,var(--good) 55%,var(--border));background:color-mix(in srgb,var(--good) 10%,transparent)}
+.verdict.deny{border-color:color-mix(in srgb,var(--crit) 55%,var(--border));background:color-mix(in srgb,var(--crit) 10%,transparent)}
+.verdict .vmain{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:20px;font-weight:600}
+.verdict.allow .vmain{color:var(--good)}
+.verdict.deny .vmain{color:var(--crit)}
+.verdict .vmain .kbres{font-size:12px;color:var(--muted);font-weight:400;margin-left:auto;font-family:var(--mono)}
+.verdict .reason{font-size:14px;color:var(--ink)}
+.verdict .reason b{font-family:var(--mono);color:var(--ink)}
+.verdict .via{font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.7}
+.verdict .via .chip2{color:var(--accent)}
+.verdict .via .chip3{color:var(--blue)}
+.verdict .kcmd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:3px}
+.verdict .kcmd code{font-family:var(--mono);font-size:12px;background:var(--ground);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--ink)}
+.verdict .kcmd .trybtn{margin-top:0}
+.rbac-presets{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px}
+.rbac-presets .chip{cursor:pointer}
+.rbac-ref{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:820px){.rbac-ref{grid-template-columns:1fr}}
+.ref-col h3{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.subj{border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:13px 15px;margin-bottom:10px}
+.subj .sh{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.subj .kind2{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--muted);flex:none}
+.subj .sname{font-family:var(--mono);font-size:12px;color:var(--ink);word-break:break-all}
+.subj .grants{display:flex;flex-direction:column;gap:5px}
+.subj .grant{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.subj .grant b{color:var(--accent);font-weight:400}
+.subj.none{border-color:color-mix(in srgb,var(--warn) 40%,var(--border))}
+.subj.none .grant{color:var(--warn)}
+.rolec{border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:13px 15px;margin-bottom:10px}
+.rolec .rh{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.rolec .rscope{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:5px;flex:none}
+.rolec .rscope.cluster{color:var(--blue);border:1px solid color-mix(in srgb,var(--blue) 50%,var(--border))}
+.rolec .rscope.ns{color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 50%,var(--border))}
+.rolec .rname{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.rolec .rule2{font-family:var(--mono);font-size:11px;color:var(--muted);padding:2px 0}
+.rolec .rule2 .v{color:var(--good)}
+.rolec .rule2 .r{color:var(--accent)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -321,6 +370,7 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <button class="tab" role="tab" aria-selected="true" data-tab="concepts"><span class="num">01</span>Concepts</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="lab"><span class="num">02</span>Cluster Lab</button>
       <button class="tab" role="tab" aria-selected="false" data-tab="trials"><span class="num">03</span>Trials</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="rbac"><span class="num">04</span>RBAC</button>
     </nav>
   </div>
 </header>
@@ -393,6 +443,34 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <div class="badges" id="badges"></div>
     </div>
     <div class="trials" id="trials"></div>
+  </section>
+
+  <!-- RBAC -->
+  <section class="panel" id="p-rbac" role="tabpanel">
+    <div class="intro">
+      <div class="eyebrow">RBAC · authorization simulator</div>
+      <h2>Can I do that?</h2>
+      <p>Kubernetes RBAC is <b>allow-only</b> and <b>additive</b>: a subject can act only if some Role or ClusterRole, <em>bound</em> to it, grants the verb on the resource. There are no deny rules. Build a question below and watch the answer — and exactly which binding decides it. Mirrors <code class="mono" style="color:var(--accent)">kubectl auth can-i</code>, which you can also run in the Cluster Lab terminal.</p>
+    </div>
+    <div class="rbac">
+      <div class="card rbac-q">
+        <div class="rbac-sentence">
+          <span class="w">Can</span>
+          <span class="rsel"><select id="rb-subj" aria-label="subject"></select></span>
+          <span class="rsel"><select id="rb-verb" aria-label="verb"></select></span>
+          <span class="rsel"><select id="rb-res" aria-label="resource"></select></span>
+          <span class="w">in</span>
+          <span class="rsel"><select id="rb-ns" aria-label="namespace"></select></span>
+          <span class="w">?</span>
+        </div>
+        <div class="verdict" id="rb-verdict"></div>
+        <div class="rbac-presets" id="rb-presets"></div>
+      </div>
+      <div class="rbac-ref">
+        <div class="ref-col"><h3>◆ Subjects &amp; their access</h3><div id="rb-subjects"></div></div>
+        <div class="ref-col"><h3>◆ Roles &amp; what they grant</h3><div id="rb-roles"></div></div>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -837,6 +915,7 @@ function run(raw){
       case "drain": return kDrain(pos.slice(1));
       case "rollout": return kRollout(pos.slice(1));
       case "apply": return print('Simulated apply isn\'t wired to a file editor here. Try: kubectl create deployment <name> --image=<img> --replicas=N','warnl');
+      case "auth": return kAuth(pos.slice(1),flags);
       case "api-resources": return kApiResources();
       case undefined: return print("kubectl controls the Kubernetes cluster manager. Type \"help\" for supported commands.","dim");
       default: return print(`error: unknown command "${verb}". Type "help".`,"err");
@@ -1100,6 +1179,7 @@ function help(){
     ["kubectl cordon|uncordon|drain <node>","control scheduling on a node"],
     ["kubectl rollout restart|status deployment/<n>","restart or check a rollout"],
     ["kubectl explain <resource>","quick dojo definition"],
+    ["kubectl auth can-i <verb> <resource> --as=<subject>","check an RBAC permission"],
     ["reset  /  clear","reset the cluster / clear the screen"],
   ];
   print("Simulated kubectl — supported commands:","info");
@@ -1131,7 +1211,7 @@ input.addEventListener("keydown",e=>{
   else if(e.key==="ArrowDown"){e.preventDefault();if(hIdx>0){hIdx--;input.value=HISTORY[hIdx]||"";}else{hIdx=-1;input.value="";}}
 });
 // quick chips
-const CHIPS=["kubectl get pods","kubectl get pods -o wide","kubectl scale deployment web --replicas=5","kubectl delete pod","kubectl create deployment api --image=nginx --replicas=3","kubectl cordon worker-c","kubectl run oops --image=notreal","help"];
+const CHIPS=["kubectl get pods","kubectl get pods -o wide","kubectl scale deployment web --replicas=5","kubectl delete pod","kubectl create deployment api --image=nginx --replicas=3","kubectl cordon worker-c","kubectl run oops --image=notreal","kubectl auth can-i create deployments --as=ci-deployer -n team-a","help"];
 const chipsWrap=$("#chips");
 CHIPS.forEach(c=>{const b=el("button","chip",c);b.addEventListener("click",()=>{input.value=c+(c==="kubectl delete pod"?" ":"");input.focus();});chipsWrap.appendChild(b);});
 
@@ -1200,6 +1280,7 @@ function openConcept(id){
   const pre=el("pre");pre.innerHTML=highlightYaml(c.yaml);mkBlock("Manifest",pre);
   const cm=el("div","cmds");c.cmds.forEach(cd=>{const code=el("code");code.innerHTML=escapeHtml(cd).replace(/^(\w+)/,'<b>$1</b>');cm.appendChild(code);});
   mkBlock("Practice in the lab",cm);
+  if(c.id==="rbac"){const rb=el("button","trybtn","▶ Open the can-i simulator");rb.style.marginRight="8px";rb.addEventListener("click",()=>{closeSheet();switchTab("rbac");});sheetin.appendChild(rb);}
   if(c.cmds[0]&&!c.cmds[0].includes("--raw")){
     const tb=el("button","trybtn",`▶ Run "${c.cmds.find(x=>!x.includes("<"))||c.cmds[0]}" in the Lab`);
     const runnable=c.cmds.find(x=>!x.includes("<"))||c.cmds[0];
@@ -1278,6 +1359,128 @@ function updateRank(){
   $("#rankdot").style.borderColor=belt.color;
 }
 
+/* ============================ RBAC · can-i simulator ============================ */
+const RBAC={
+  subjects:[
+    {id:"default-sa",kind:"ServiceAccount",name:"default",ns:"default",display:"system:serviceaccount:default:default"},
+    {id:"dev-sa",kind:"ServiceAccount",name:"dev",ns:"team-a",display:"system:serviceaccount:team-a:dev"},
+    {id:"ci-deployer",kind:"ServiceAccount",name:"ci-deployer",ns:"team-a",display:"system:serviceaccount:team-a:ci-deployer"},
+    {id:"alice",kind:"User",name:"alice",display:"alice"},
+    {id:"ops-admin",kind:"User",name:"ops-admin",display:"ops-admin"},
+  ],
+  roles:{
+    "pod-reader":{scope:"Role",ns:"team-a",rules:[{apiGroups:[""],resources:["pods"],verbs:["get","list","watch"]}]},
+    "deployer":{scope:"ClusterRole",rules:[{apiGroups:["apps"],resources:["deployments","replicasets"],verbs:["get","list","create","update","patch"]}]},
+    "view":{scope:"ClusterRole",rules:[{apiGroups:["","apps"],resources:["pods","services","deployments","configmaps"],verbs:["get","list","watch"]}]},
+    "cluster-admin":{scope:"ClusterRole",rules:[{apiGroups:["*"],resources:["*"],verbs:["*"]}]},
+  },
+  bindings:[
+    {kind:"RoleBinding",ns:"team-a",role:"pod-reader",roleKind:"Role",subject:"dev-sa"},
+    {kind:"RoleBinding",ns:"team-a",role:"deployer",roleKind:"ClusterRole",subject:"ci-deployer"},
+    {kind:"ClusterRoleBinding",role:"view",roleKind:"ClusterRole",subject:"alice"},
+    {kind:"ClusterRoleBinding",role:"cluster-admin",roleKind:"ClusterRole",subject:"ops-admin"},
+  ],
+};
+const RES_GROUP={pods:"",services:"",configmaps:"",secrets:"",nodes:"",namespaces:"",deployments:"apps",replicasets:"apps",statefulsets:"apps",daemonsets:"apps"};
+const RBAC_PRESETS=[
+  {subj:"dev-sa",verb:"get",res:"pods",ns:"team-a",label:"dev-sa · get pods · team-a"},
+  {subj:"dev-sa",verb:"delete",res:"pods",ns:"team-a",label:"dev-sa · delete pods · team-a"},
+  {subj:"ci-deployer",verb:"create",res:"deployments",ns:"team-a",label:"ci-deployer · create deploy · team-a"},
+  {subj:"ci-deployer",verb:"create",res:"deployments",ns:"default",label:"ci-deployer · create deploy · default"},
+  {subj:"alice",verb:"get",res:"secrets",ns:"default",label:"alice(view) · get secrets"},
+  {subj:"default-sa",verb:"get",res:"pods",ns:"default",label:"default SA · get pods"},
+  {subj:"ops-admin",verb:"delete",res:"nodes",ns:"default",label:"ops-admin · delete nodes"},
+];
+let rbacCurrentSubject="dev-sa";
+const RES_ALIAS={po:"pods",svc:"services",deploy:"deployments",deployment:"deployments",rs:"replicasets",cm:"configmaps",ns:"namespaces",no:"nodes",node:"nodes",secret:"secrets"};
+function normRes(r){r=(r||"").toLowerCase();if(RES_GROUP[r]!=null)return r;if(RES_GROUP[r+"s"]!=null)return r+"s";return RES_ALIAS[r]||r;}
+function findSubject(str){if(!str)return null;return RBAC.subjects.find(s=>s.id===str||s.display===str||s.name===str||s.display.endsWith(":"+str));}
+function ruleMatches(rule,verb,resource,group){
+  const g=rule.apiGroups.includes("*")||rule.apiGroups.includes(group);
+  const r=rule.resources.includes("*")||rule.resources.includes(resource);
+  const v=rule.verbs.includes("*")||rule.verbs.includes(verb);
+  return g&&r&&v;
+}
+function rbacCan(subjectId,verb,resource,ns){
+  const group=RES_GROUP[resource]!=null?RES_GROUP[resource]:"";
+  const applicable=[];
+  for(const b of RBAC.bindings){
+    if(b.subject!==subjectId)continue;
+    if(b.kind==="ClusterRoleBinding")applicable.push(b);
+    else if(b.kind==="RoleBinding"&&b.ns===ns)applicable.push(b);
+  }
+  for(const b of applicable){
+    const role=RBAC.roles[b.role];
+    if(!role)continue;
+    for(const rule of role.rules){
+      if(ruleMatches(rule,verb,resource,group))return {allow:true,via:b,role:b.role,rule};
+    }
+  }
+  const reason=applicable.length
+    ? `bound role(s) [${applicable.map(b=>b.role).join(", ")}] grant no "${verb} ${resource}" in ${ns}`
+    : `no RoleBinding in "${ns}" and no ClusterRoleBinding applies to this subject — denied by default`;
+  return {allow:false,reason};
+}
+function fmtRule(rule){return `${rule.verbs.join(", ")} → ${rule.resources.join(", ")}`;}
+
+function kAuth(args,flags){
+  if(args[0]!=="can-i")return print('Usage: kubectl auth can-i <verb> <resource> [--as=<subject>] [-n <namespace>]',"warnl");
+  const verb=(args[1]||"").toLowerCase();
+  const resource=normRes(args[2]);
+  if(!verb||!args[2])return print('error: you must specify a verb and resource, e.g. "can-i get pods"',"err");
+  const subjStr=flags.as||rbacCurrentSubject;
+  const subj=findSubject(subjStr);
+  if(!subj)return print(`Unknown subject "${subjStr}". Known: ${RBAC.subjects.map(s=>s.id).join(", ")}. (Set the active identity in the RBAC tab, or pass --as=)`,"err");
+  const ns=flags.n||"default";
+  const res=rbacCan(subj.id,verb,resource,ns);
+  print(res.allow?"yes":"no",res.allow?"ok":"err");
+  if(res.allow)print(`↳ ${subj.display}: granted by ${res.via.kind} → ${res.via.roleKind||""} ${res.role} (rule: ${fmtRule(res.rule)})`,"dim");
+  else print(`↳ ${subj.display}: ${res.reason}`,"dim");
+}
+
+function renderRBAC(){
+  const subjSel=$("#rb-subj"),verbSel=$("#rb-verb"),resSel=$("#rb-res"),nsSel=$("#rb-ns");
+  subjSel.innerHTML=RBAC.subjects.map(s=>`<option value="${s.id}">${s.kind==="ServiceAccount"?`${s.name} · SA/${s.ns}`:`${s.name} · User`}</option>`).join("");
+  verbSel.innerHTML=["get","list","watch","create","update","patch","delete","*"].map(v=>`<option value="${v}">${v==="*"?"* any":v}</option>`).join("");
+  resSel.innerHTML=["pods","services","deployments","replicasets","configmaps","secrets","nodes","*"].map(r=>`<option value="${r}">${r==="*"?"* any":r}</option>`).join("");
+  nsSel.innerHTML=["default","team-a","kube-system"].map(n=>`<option value="${n}">${n}</option>`).join("");
+  subjSel.value=rbacCurrentSubject;verbSel.value="get";resSel.value="pods";nsSel.value="team-a";
+  [subjSel,verbSel,resSel,nsSel].forEach(s=>s.addEventListener("change",evalRBAC));
+  const pw=$("#rb-presets");pw.innerHTML="";
+  RBAC_PRESETS.forEach(p=>{const b=el("button","chip",p.label);b.addEventListener("click",()=>{subjSel.value=p.subj;verbSel.value=p.verb;resSel.value=p.res;nsSel.value=p.ns;evalRBAC();});pw.appendChild(b);});
+  $("#rb-subjects").innerHTML=RBAC.subjects.map(s=>{
+    const bs=RBAC.bindings.filter(b=>b.subject===s.id);
+    const grants=bs.length?bs.map(b=>`<div class="grant">${b.kind} → <b>${b.role}</b>${b.kind==="RoleBinding"?` in ${b.ns}`:" (cluster-wide)"}</div>`).join(""):`<div class="grant">no bindings — denied by default</div>`;
+    return `<div class="subj${bs.length?"":" none"}"><div class="sh"><span class="kind2">${s.kind==="ServiceAccount"?"SA":"User"}</span><span class="sname">${escapeHtml(s.display)}</span></div><div class="grants">${grants}</div></div>`;
+  }).join("");
+  $("#rb-roles").innerHTML=Object.entries(RBAC.roles).map(([name,role])=>
+    `<div class="rolec"><div class="rh"><span class="rscope ${role.scope==="ClusterRole"?"cluster":"ns"}">${role.scope}${role.ns?" · "+role.ns:""}</span><span class="rname">${name}</span></div>`+
+    role.rules.map(r=>`<div class="rule2"><span class="v">${r.verbs.join(" ")}</span> → <span class="r">${r.resources.join(", ")}</span>${r.apiGroups.filter(g=>g&&g!=="*").length?` <span style="color:var(--faint)">[${r.apiGroups.filter(g=>g).join(",")}]</span>`:""}</div>`).join("")+
+    `</div>`).join("");
+  evalRBAC();
+}
+function evalRBAC(){
+  const subjId=$("#rb-subj").value,verb=$("#rb-verb").value,resource=$("#rb-res").value,ns=$("#rb-ns").value;
+  rbacCurrentSubject=subjId;
+  const subj=RBAC.subjects.find(s=>s.id===subjId);
+  renderVerdict(rbacCan(subjId,verb,resource,ns),subj,verb,resource,ns);
+}
+function renderVerdict(res,subj,verb,resource,ns){
+  const v=$("#rb-verdict");
+  v.className="verdict "+(res.allow?"allow":"deny");
+  const cmd=`kubectl auth can-i ${verb} ${resource} --as=${subj.display} -n ${ns}`;
+  const via=res.allow
+    ? `<div class="via">granted by <span class="chip3">${res.via.kind}</span> → <span class="chip3">${res.via.roleKind||""} ${res.role}</span> → rule <span class="chip2">${fmtRule(res.rule)}</span></div>`
+    : `<div class="via">${escapeHtml(res.reason)}</div>`;
+  v.innerHTML=
+    `<div class="vmain">${res.allow?"✓ yes — ALLOW":"✗ no — DENY"}<span class="kbres">${subj.kind}: ${escapeHtml(subj.name)}</span></div>`+
+    `<div class="reason"><b>${escapeHtml(subj.display)}</b> ${res.allow?"may":"may <u>not</u>"} <b>${verb} ${resource}</b> in <b>${ns}</b>.</div>`+
+    via+
+    `<div class="kcmd"><code>${escapeHtml(cmd)}</code><button class="trybtn" id="rb-run">▶ run in terminal</button></div>`;
+  const rb=$("#rb-run");
+  if(rb)rb.addEventListener("click",()=>{switchTab("lab");setTimeout(()=>{input.value=cmd;run(cmd);},350);});
+}
+
 /* ============================ TABS ============================ */
 function switchTab(name){
   $$(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===name?"true":"false"));
@@ -1318,6 +1521,7 @@ themeBtn.addEventListener("click",()=>{
 /* ============================ BOOT ============================ */
 renderConcepts();
 renderTrials();
+renderRBAC();
 // prime the cluster: schedule initial pods immediately then loop
 reconcile();
 print("K8s Dojo terminal — a simulated cluster with a live reconcile loop.","info");
