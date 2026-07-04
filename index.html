@@ -110,6 +110,14 @@ main{padding:26px 0 90px}
 .belt-head .count{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
 .belt-head .line{height:1px;flex:1;background:var(--border)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.fchip{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;padding:7px 13px;border-radius:999px;
+  border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:.15s}
+.fchip:hover{border-color:var(--accent);color:var(--ink)}
+.fchip[aria-selected="true"]{border-color:var(--accent);color:var(--ink);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.fchip .fdot{width:11px;height:11px;border-radius:50%;border:1px solid var(--border-strong);flex:none}
+.fchip .fcount{color:var(--faint);font-size:10.5px;font-variant-numeric:tabular-nums}
+.fchip[aria-selected="true"] .fcount{color:var(--accent)}
 .ccard{text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:11px;
   padding:15px 15px 14px;transition:.18s;position:relative;overflow:hidden;color:var(--ink)}
 .ccard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
@@ -407,6 +415,7 @@ footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color
       <h2>Learn the cluster the way it actually thinks.</h2>
       <p>Kubernetes is Greek for <em>helmsman</em> — the pilot who steers a ship of containers. Work through the belts below: each card opens a deep dive with the mental model, the reason it exists, the gotchas that bite people, and a real manifest. Then take the helm in the <b>Cluster Lab</b>.</p>
     </div>
+    <div class="filterbar" id="beltfilter" role="tablist" aria-label="Filter concepts by belt"></div>
     <div id="belts"></div>
   </section>
 
@@ -1494,9 +1503,27 @@ function loadProgress(){try{const s=JSON.parse(localStorage.getItem("k8sdojo")||
 function loadMaster(){try{const s=JSON.parse(localStorage.getItem("k8sdojo")||"{}");return new Set(s.mastered||[]);}catch(e){return new Set();}}
 function saveProgress(){try{localStorage.setItem("k8sdojo",JSON.stringify({read:[...readSet],mastered:[...masterSet],score:trialScore,answered:[...answered]}));}catch(e){}}
 
+let activeBelt=null;
+function renderBeltFilter(){
+  const fb=$("#beltfilter");if(!fb)return;fb.innerHTML="";
+  const mkChip=(id,name,color,done,total)=>{
+    const b=el("button","fchip");b.setAttribute("role","tab");
+    b.setAttribute("aria-selected",(activeBelt===id||(id===null&&!activeBelt))?"true":"false");
+    if(color){const d=el("span","fdot");d.style.background=color;b.appendChild(d);}
+    b.appendChild(document.createTextNode(name));
+    const cnt=el("span","fcount",`${done}/${total}`);b.appendChild(cnt);
+    b.addEventListener("click",()=>{activeBelt=(activeBelt===id?null:id);renderConcepts();});
+    fb.appendChild(b);
+  };
+  mkChip(null,"All","",readSet.size,C.length);
+  BELTS.forEach(bl=>{const list=C.filter(c=>c.belt===bl.id);if(!list.length)return;
+    mkChip(bl.id,`${bl.name} belt`,bl.color,list.filter(c=>readSet.has(c.id)).length,list.length);});
+}
 function renderConcepts(){
+  renderBeltFilter();
   const wrap=$("#belts");wrap.innerHTML="";
   BELTS.forEach(b=>{
+    if(activeBelt&&b.id!==activeBelt)return;
     const list=C.filter(c=>c.belt===b.id);
     if(!list.length)return;
     const head=el("div","belt-head");
