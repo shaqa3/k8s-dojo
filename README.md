@@ -16,14 +16,14 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 
 ## What's inside
 
-- **Concepts** — 23 deep-dive cards organized into a belt progression (White → Black). Each opens a slide-over with the mental model, why it exists, the gotchas that actually bite people, a real manifest, and practice commands.
+- **Concepts** — 32 deep-dive cards organized into a belt progression (White → Black). Each opens a slide-over with the mental model, why it exists, the gotchas that actually bite people, an **under-the-hood** mechanism, a **failure-modes → fixes** table, a real manifest, practice commands, an inline **"test yourself" mini-quiz** that feeds your rank, and **cross-links** to related concepts.
 - **Cluster Lab** — the centerpiece. A live cluster diagram and a *simulated* `kubectl` terminal share one reactive state driven by a real reconcile loop:
   - `kubectl scale deployment web --replicas=5` — watch the scheduler place pods.
   - `kubectl delete pod <name>` — watch a controller heal it (a bare `kubectl run` pod stays gone).
   - `kubectl run oops --image=notreal` — see ImagePullBackOff.
   - `kubectl cordon` / `drain` — see scheduling and eviction.
   - Plus `describe`, `logs`, `expose`, `rollout`, command history (↑/↓), and quick-start chips.
-- **Trials** — concept questions and fix-the-broken-manifest challenges. Answers reveal the reasoning and raise your belt rank.
+- **Trials** — 20 concept questions and fix-the-broken-manifest challenges across every belt. Answers reveal the reasoning and raise your belt rank.
 - **RBAC** — an interactive `can-i` simulator. Build "Can [subject] [verb] [resource] in [namespace]?" and see ALLOW/DENY plus exactly which Role/ClusterRole binding decides it. Shows how RBAC is allow-only and additive, and how a RoleBinding scopes a ClusterRole to one namespace. Also runs as `kubectl auth can-i <verb> <resource> --as=<subject>` in the Cluster Lab terminal.
 
 ## Notes

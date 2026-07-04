@@ -277,6 +277,29 @@ pre .vv{color:var(--accent)}
 
 footer{border-top:1px solid var(--border);padding:24px 0;text-align:center;color:var(--faint);
   font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+/* ---- concept depth blocks ---- */
+.fmodes{display:flex;flex-direction:column;gap:8px}
+.fmode{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:start;border:1px solid var(--border);border-radius:9px;padding:10px 12px;background:var(--surface-2)}
+@media (max-width:520px){.fmode{grid-template-columns:1fr;gap:4px}}
+.fmode .fs{font-family:var(--mono);font-size:11.5px;color:var(--crit)}
+.fmode .ff{font-size:13px;color:var(--ink)}
+.related{display:flex;flex-wrap:wrap;gap:7px}
+.relchip{font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--accent)}
+.relchip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.relchip::before{content:"→ ";color:var(--faint)}
+.check{border:1px solid var(--border-strong);border-radius:11px;padding:15px 16px;background:var(--surface-2)}
+.check .cq{font-size:14.5px;font-weight:600;margin-bottom:11px;color:var(--ink);text-wrap:balance}
+.copts{display:flex;flex-direction:column;gap:7px}
+.copt{text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--ink);display:flex;gap:9px;align-items:flex-start;transition:.14s}
+.copt:hover:not(:disabled){border-color:var(--accent)}
+.copt:disabled{cursor:default}
+.copt .cmk{font-family:var(--mono);font-size:11px;color:var(--faint);flex:none;margin-top:1px}
+.copt.correct{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent)}
+.copt.wrong{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.cexpl{display:none;margin-top:11px;font-size:12.5px;color:var(--muted);border-left:2px solid var(--good);padding-left:11px}
+.cexpl.show{display:block;animation:fade .3s}
+.cexpl b{color:var(--ink)}
+.cmastered{margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--good)}
 /* ---- rbac ---- */
 .rbac{display:flex;flex-direction:column;gap:16px}
 .rbac-q{padding:22px 24px}
@@ -677,6 +700,205 @@ const C=[
  cmds:["kubectl get crds","kubectl api-resources"]},
 ];
 
+/* ===== DENSITY PACK: deeper per-concept content + 9 new concepts ===== */
+const CX={
+ container:{underHood:`containerd doesn't 'boot' anything — it clone()s a process into fresh namespaces (PID, net, mnt, uts, ipc) and pins it with cgroups. The image is a stack of read-only overlay layers plus one thin writable layer discarded on restart.`,
+  failureModes:[{s:`CrashLoopBackOff`,f:`The single main process exits — bad command, missing env, panic. There is no init to keep it alive. Check kubectl logs --previous.`},{s:`Runs as root unexpectedly`,f:`No securityContext. Set runAsNonRoot: true and a numeric runAsUser.`}],
+  related:["pod","resources","probes"],
+  check:{q:`Why does a container start in milliseconds but a VM takes seconds?`,opts:[`The image is smaller`,`It reuses the host kernel — no second kernel or hardware to boot`,`Containers skip the network stack`,`Kubernetes pre-warms them`],a:1,expl:`A container is a host process isolated by namespaces + cgroups; nothing new boots.`}},
+ pod:{underHood:`The kubelet first creates a 'pause' sandbox container that holds the pod's network namespace and IP. Your app containers then join that same netns — which is exactly why they share localhost and one IP.`,
+  failureModes:[{s:`Stuck Pending`,f:`No node fits its requests / affinity / taints. describe shows FailedScheduling.`},{s:`Port already in use`,f:`Two containers share one netns; they can't both bind :80. Use different ports.`}],
+  related:["container","replicaset","initcontainer","probes"],
+  check:{q:`How do two containers in one pod reach each other?`,opts:[`Via the Service DNS name`,`Over localhost — they share a network namespace`,`Through a shared ConfigMap`,`They can't`],a:1,expl:`The pause container owns the netns; app containers share it.`}},
+ namespace:{underHood:`A namespace is a scope field on every object. RBAC RoleBindings, ResourceQuotas, and NetworkPolicies all bind to it. Deleting one runs cascading finalizers over every child object.`,
+  failureModes:[{s:`Stuck Terminating`,f:`A child object's finalizer can't complete. Find and clear the stuck finalizer.`},{s:`Cross-ns name won't resolve`,f:`Use the FQDN: svc.other-ns.svc.cluster.local.`}],
+  related:["rbac","quota","service"],
+  check:{q:`Can two pods named 'web' exist in one cluster?`,opts:[`No, names are cluster-unique`,`Yes, if they're in different namespaces`,`Only with different labels`,`Only on different nodes`],a:1,expl:`Names are unique per namespace, not per cluster.`}},
+ replicaset:{underHood:`The controller runs a watch on the API server. On any matching pod add/delete it recomputes desired-vs-actual and issues create/delete calls. Level-triggered: it acts on current counts, so a missed event self-corrects.`,
+  failureModes:[{s:`Deleted pods return`,f:`Working as intended — it heals to desired. Delete the owning Deployment instead.`},{s:`Adopts a stray pod`,f:`A bare pod shares the selector labels; the RS counts or deletes it.`}],
+  related:["deployment","pod","controller"],
+  check:{q:`replicas: 3 and a node dies with 1 pod. What happens?`,opts:[`Nothing until you act`,`The RS sees 2<3 and creates 1 pod on a healthy node`,`All 3 restart`,`The Deployment rolls back`],a:1,expl:`Level-triggered reconciliation closes the gap automatically.`}},
+ deployment:{underHood:`A rollout creates a NEW ReplicaSet at revision N+1, scaling it up while scaling the old one down per maxSurge/maxUnavailable. Old ReplicaSets are kept at 0 replicas, so rollback is just re-scaling one back up.`,
+  failureModes:[{s:`Rollout hangs at 'x of y'`,f:`New pods never go Ready (bad image/probe). Old pods keep serving. Fix, or rollout undo.`},{s:`ConfigMap edit ignored`,f:`Only template changes trigger rollouts. Use rollout restart.`}],
+  related:["replicaset","probes","configmap","hpa"],
+  check:{q:`Why is kubectl rollout undo so fast?`,opts:[`It rebuilds the old image`,`It scales the previous ReplicaSet back up`,`It restores an etcd backup`,`It replays the audit log`],a:1,expl:`Old ReplicaSets are retained at 0; undo just re-scales them.`}},
+ service:{underHood:`kube-proxy watches Services + EndpointSlices and programs the node's iptables/IPVS. A ClusterIP is virtual — no process listens on it; packets are DNAT'd to a random Ready pod IP. CoreDNS maps the Service name to that ClusterIP.`,
+  failureModes:[{s:`Connection refused / no endpoints`,f:`selector≠pod labels, or no pod is Ready. Check kubectl get endpoints.`},{s:`Traffic sticks to one pod`,f:`Keep-alive / gRPC pins connections. Use client-side LB or a mesh.`}],
+  related:["pod","ingress","probes","netpol"],
+  check:{q:`A Service has 0 endpoints though pods are Running. Likely?`,opts:[`Wrong Service type`,`selector≠labels, or readiness failing`,`DNS is down`,`Missing LoadBalancer`],a:1,expl:`Endpoints include only pods whose labels match AND are Ready.`}},
+ ingress:{underHood:`The Ingress object is just data in etcd. An Ingress controller (nginx/Traefik) watches it and rewrites its own proxy config, terminating TLS and proxying to Service ClusterIPs.`,
+  failureModes:[{s:`404 / default backend`,f:`Host/path rule doesn't match, or no controller is installed.`},{s:`503 from the Ingress`,f:`Backend Service has no Ready endpoints.`}],
+  related:["service","netpol"],
+  check:{q:`You applied an Ingress but nothing routes. First check?`,opts:[`Pod logs`,`Whether an Ingress controller is actually running`,`The etcd backup`,`Node CPU`],a:1,expl:`An Ingress resource does nothing without a controller acting on it.`}},
+ configmap:{underHood:`Mounted as a volume, the kubelet projects keys as files and refreshes them periodically (up to ~1 min). As env vars, values are copied ONCE at container start and never updated.`,
+  failureModes:[{s:`Config change no effect`,f:`Env vars are frozen at start. rollout restart, or mount as files and re-read.`},{s:`Pod won't start: not found`,f:`Referenced CM/key missing in that namespace. Create it first.`}],
+  related:["secret","deployment","quota"],
+  check:{q:`You edit a ConfigMap mounted as env vars. Running pods…`,opts:[`See new values within a minute`,`Keep old values until restarted`,`Crash immediately`,`Reload only the changed key`],a:1,expl:`Env injection is a one-time copy at container start.`}},
+ secret:{underHood:`Stored in etcd base64-encoded, not encrypted, unless you enable an EncryptionConfiguration (aescbc/kms). Mounted secrets live in tmpfs (RAM), so they're wiped when the pod stops.`,
+  failureModes:[{s:`Leaked in logs`,f:`Injected as env var and printed on crash. Prefer file mounts.`},{s:`Anyone in ns can read it`,f:`RBAC too broad. Restrict get/list on secrets.`}],
+  related:["configmap","rbac","serviceaccount"],
+  check:{q:`What actually protects a Secret at rest?`,opts:[`base64 encoding`,`etcd encryption-at-rest + tight RBAC`,`The Opaque type`,`Namespace isolation`],a:1,expl:`base64 is only encoding; real protection is encryption + RBAC.`}},
+ volume:{underHood:`A PVC is a request; a StorageClass provisions a matching PV dynamically (a CSI driver calls the storage API). The kubelet mounts it into the pod; accessMode is enforced at attach time.`,
+  failureModes:[{s:`PVC stuck Pending`,f:`No StorageClass, or none satisfies the size/accessMode.`},{s:`Volume node-affinity conflict`,f:`An RWO volume is bound to a zone/node the pod can't run on.`}],
+  related:["statefulset","pod","quota"],
+  check:{q:`Many pods on different nodes must write one volume. accessMode?`,opts:[`ReadWriteOnce`,`ReadWriteMany`,`ReadOnlyMany`,`Not possible`],a:1,expl:`RWO is one node only; RWX allows multi-node read-write if the backend supports it.`}},
+ apiserver:{underHood:`Every request runs a pipeline: authn → authz (RBAC) → mutating admission → schema validation → validating admission → write to etcd. Controllers and kubelets stay in sync via long-lived watch streams.`,
+  failureModes:[{s:`All writes hang`,f:`A failing mutating/validating webhook is in the path. Check webhook configs.`},{s:`Cluster-wide slowness`,f:`Overloaded by huge list calls / too many watches. Paginate, use selectors.`}],
+  related:["etcd","controller","rbac","admission"],
+  check:{q:`For its pod assignments, the kubelet talks to…`,opts:[`etcd directly`,`the scheduler directly`,`only the API server`,`other kubelets`],a:2,expl:`Everything flows through the API server — the single front door.`}},
+ etcd:{underHood:`A Raft cluster: writes go to the leader, replicate to a majority, then commit. Each object is a key; watches are served from etcd's MVCC revision history — the engine behind every controller watch.`,
+  failureModes:[{s:`Control plane read-only`,f:`Lost quorum (too many members down). Restore an odd-sized quorum.`},{s:`Whole cluster laggy`,f:`DB too large / disk too slow. Compact, defrag, use fast SSD.`}],
+  related:["apiserver","controller"],
+  check:{q:`Why 3 or 5 etcd members, never 2 or 4?`,opts:[`Cost`,`Raft needs a majority; even counts add no fault tolerance`,`DNS needs odd numbers`,`To match node count`],a:1,expl:`Quorum is a majority; a 2-member cluster tolerates 0 failures.`}},
+ scheduler:{underHood:`Two phases per pod: Filter (predicates — fit, taints, affinity, volume zone) removes infeasible nodes, then Score (spread, least-loaded, affinity weight) ranks the rest. It writes a Binding; it never starts containers.`,
+  failureModes:[{s:`Pending: FailedScheduling`,f:`No node passes filters (resources/taints/affinity). Read the describe reasons.`},{s:`Pods pile on one node`,f:`Weak spread or a nodeSelector pinning them. Add topology spread constraints.`}],
+  related:["kubelet","taints","affinity","resources"],
+  check:{q:`The scheduler's job ends when it…`,opts:[`starts the containers`,`writes a Binding assigning the pod to a node`,`pulls the image`,`runs the probes`],a:1,expl:`It only decides placement; the kubelet runs the pod.`}},
+ controller:{underHood:`Each controller uses an informer (cached watch) + a work queue. It syncs by comparing spec vs status and issuing API calls, then requeues. Level-triggered + idempotent means a dropped event self-corrects next sync.`,
+  failureModes:[{s:`Object flaps / fights`,f:`Two controllers (or a human) own the same field. Pick one owner.`},{s:`Change 'ignored'`,f:`Controller crashed, or a finalizer/validation blocks the write.`}],
+  related:["replicaset","apiserver","operator"],
+  check:{q:`'Level-triggered' reconciliation means…`,opts:[`it reacts only to events`,`it acts on current observed state, so missed events self-heal`,`it runs on a fixed timer only`,`it needs exactly-once delivery`],a:1,expl:`It re-derives from current state each sync — robust to dropped events.`}},
+ kubelet:{underHood:`The kubelet syncs its node's pods via the CRI (containerd/CRI-O) for containers, CNI for networking, CSI for volumes. It runs probes, reports status, and enforces eviction under resource pressure.`,
+  failureModes:[{s:`Node NotReady`,f:`kubelet down or can't reach the API server; its pods reschedule after a timeout.`},{s:`Pods evicted`,f:`Node under memory/disk pressure; lowest-QoS pods go first.`}],
+  related:["scheduler","probes","resources"],
+  check:{q:`Who restarts a container that fails its liveness probe?`,opts:[`the scheduler`,`the kubelet on that node`,`the Deployment controller`,`etcd`],a:1,expl:`The kubelet runs probes and restarts containers locally.`}},
+ statefulset:{underHood:`Pods get ordinal names (db-0..N-1) and stable DNS via a headless Service, each with its own PVC from volumeClaimTemplates. Create/scale/update proceed in order, waiting for each pod before the next.`,
+  failureModes:[{s:`Rollout stuck on one pod`,f:`Ordered updates halt if db-K won't go Ready. Fix that pod.`},{s:`Leaked PVCs after delete`,f:`PVCs aren't garbage-collected by default; delete them explicitly.`}],
+  related:["volume","service","daemonset"],
+  check:{q:`What gives StatefulSet pods stable network identities?`,opts:[`a LoadBalancer`,`a headless Service (clusterIP: None)`,`NodePort`,`an Ingress`],a:1,expl:`The headless Service publishes per-pod DNS records like db-0.`}},
+ daemonset:{underHood:`The DaemonSet controller watches Nodes and keeps exactly one matching pod per eligible node, adding pods as nodes join and removing them as nodes leave. It bypasses the default spread logic.`,
+  failureModes:[{s:`Not on control-plane nodes`,f:`Those carry a NoSchedule taint; add tolerations.`},{s:`Slow updates`,f:`No surge allowed (one per node); tune maxUnavailable.`}],
+  related:["scheduler","taints"],
+  check:{q:`A DaemonSet's replica count is…`,opts:[`set by spec.replicas`,`equal to the number of matching nodes`,`always 3`,`managed by the HPA`],a:1,expl:`One pod per eligible node — it ignores replicas.`}},
+ job:{underHood:`The Job controller creates pods until 'completions' succeed, respecting 'parallelism'. Failed pods retry up to backoffLimit (exponential). CronJob creates Job objects on schedule per concurrencyPolicy.`,
+  failureModes:[{s:`Pods retry forever`,f:`restartPolicy: Always is rejected; also set a backoffLimit.`},{s:`CronJob missed runs`,f:`Downtime past startingDeadlineSeconds; concurrencyPolicy may Forbid overlap.`}],
+  related:["deployment","controller"],
+  check:{q:`Valid restartPolicy for a Job?`,opts:[`Always`,`OnFailure or Never`,`Reload`,`Delete`],a:1,expl:`Always is for servers; Jobs need OnFailure/Never so success ends them.`}},
+ probes:{underHood:`The kubelet runs probes locally (httpGet/tcpSocket/exec/grpc). Liveness failure → restart the container. Readiness failure → pull the pod's IP from EndpointSlices (no traffic) without restart. Startup gates both until the app is up.`,
+  failureModes:[{s:`Restart loop on slow start`,f:`Liveness fires before startup finishes. Add a startupProbe.`},{s:`Outage, pods 'Running'`,f:`Readiness failing everywhere → Service has 0 endpoints.`}],
+  related:["service","kubelet","deployment"],
+  check:{q:`A failing READINESS probe causes…`,opts:[`a container restart`,`removal from Service endpoints, no restart`,`a node drain`,`a rollback`],a:1,expl:`Readiness gates traffic; only liveness restarts.`}},
+ resources:{underHood:`requests feed the scheduler and set cgroup cpu.shares + a memory floor; limits set the cgroup cpu quota (throttle) and memory hard cap (OOM). QoS — Guaranteed/Burstable/BestEffort — is derived and drives eviction order.`,
+  failureModes:[{s:`Random OOMKilled`,f:`Memory limit below real usage. Raise it or cut usage.`},{s:`Mysteriously slow`,f:`CPU limit throttling. Raise the CPU limit or remove it.`}],
+  related:["scheduler","kubelet","hpa","quota"],
+  check:{q:`Exceeding a CPU limit does what?`,opts:[`OOMKills the container`,`throttles it (no kill)`,`evicts the pod`,`nothing`],a:1,expl:`CPU over-limit throttles; only memory over-limit kills (OOM).`}},
+ hpa:{underHood:`The HPA controller polls metrics ~every 15s and computes desired = ceil(current × currentMetric / targetMetric), clamped to min/max, with a scale-down stabilization window to avoid flapping.`,
+  failureModes:[{s:`Targets show <unknown>`,f:`No metrics-server, or pods have no CPU requests.`},{s:`Scales up, never down`,f:`Stabilization window / lingering load — usually intentional.`}],
+  related:["resources","deployment","controller"],
+  check:{q:`HPA CPU% is measured relative to…`,opts:[`the node's total CPU`,`the pod's CPU request`,`the limit`,`a fixed 1 core`],a:1,expl:`Utilization is a percentage of the request — so requests are mandatory.`}},
+ rbac:{underHood:`Per request the authorizer unions every Role/ClusterRole bound to the subject (RoleBindings scoped to the namespace + ClusterRoleBindings cluster-wide) and allows if ANY rule matches verb+resource+group. No match → deny.`,
+  failureModes:[{s:`'forbidden' errors`,f:`No binding grants the verb/resource in that namespace. Add a narrow Role.`},{s:`Over-privileged workload`,f:`cluster-admin bound to a ServiceAccount. Scope it down.`}],
+  related:["serviceaccount","apiserver","admission","secret"],
+  check:{q:`RBAC has no deny rules, so access is…`,opts:[`default-allow`,`default-deny; granted only by matching allow rules`,`deny-overrides`,`role-priority based`],a:1,expl:`Allow-only and additive; anything not granted is denied.`}},
+ operator:{underHood:`A CRD registers a new API type served by the API server (stored in etcd like any object). An Operator is a controller watching that type, running the same reconcile loop to converge real infrastructure to the CR's spec.`,
+  failureModes:[{s:`CR created, nothing happens`,f:`No controller/Operator is running to reconcile it.`},{s:`CRD upgrade breaks clients`,f:`Schema changed without a conversion webhook.`}],
+  related:["controller","apiserver","admission"],
+  check:{q:`An Operator is essentially…`,opts:[`a Helm chart`,`a custom controller for a custom resource`,`a type of Service`,`a CI pipeline`],a:1,expl:`The reconcile-loop pattern applied to your own CRD.`}},
+};
+const NEW_CONCEPTS=[
+ {id:"labels",belt:"white",name:"Labels & Selectors",kind:"metadata",
+  tldr:`Labels are key/value tags on objects; selectors are queries over them. This loose coupling is how almost everything in Kubernetes finds everything else.`,
+  analogy:`Labels are hashtags; selectors are the search. A Service holds no references to pods — it says 'give me everything tagged app=web', and the set updates itself as pods come and go.`,
+  why:`Coupling by label lets Services, Deployments, and NetworkPolicies target dynamic sets without ever naming individual pods.`,
+  gotchas:[`A selector typo silently matches nothing — no error, just zero results.`,`Labels identify and select; use <b>annotations</b> for non-identifying metadata.`,`A Deployment's selector is immutable after creation.`],
+  underHood:`Selectors compile to server-side label queries (equality, or set-based: In, NotIn, Exists). Controllers watch with a labelSelector so they only ever see the objects they own.`,
+  failureModes:[{s:`Matches no pods`,f:`selector≠labels. Compare exactly, including case.`},{s:`Two Deployments fight`,f:`Overlapping selectors adopt each other's pods.`}],
+  related:["service","deployment","netpol"],
+  yaml:`metadata:\n  labels:\n    app: web\n    tier: frontend\n---\nselector:\n  matchLabels: {app: web}\n  matchExpressions:\n    - {key: tier, operator: In, values: [frontend]}`,
+  cmds:["kubectl get pods -l app=web","kubectl label pod web env=prod"],
+  check:{q:`How does a Service know which pods to serve?`,opts:[`by pod name`,`by label selector matching pod labels`,`by IP range`,`by node`],a:1,expl:`Everything couples through labels/selectors, not direct references.`}},
+ {id:"initcontainer",belt:"yellow",name:"Init Containers & Sidecars",kind:"pod pattern",
+  tldr:`Init containers run to completion, in order, before app containers start. Sidecars run alongside the main app for its whole life.`,
+  analogy:`Init containers are the stage crew setting up before the show — they finish and leave. A sidecar is the sound engineer who stays for the whole performance (log shipping, a proxy).`,
+  why:`Separate one-time setup from the app image, and attach cross-cutting helpers without baking them into the app.`,
+  gotchas:[`If an init container fails, the pod restarts and re-runs inits from the top — make them idempotent.`,`A plain extra container can keep a Job pod 'running' forever; use a <b>native sidecar</b> (restartPolicy: Always init container).`,`Init containers can carry tighter security/resources than the app.`],
+  underHood:`The kubelet starts initContainers sequentially — each must exit 0 before the next; only then do app containers run. Native sidecars are initContainers with restartPolicy: Always that stay up beside the app.`,
+  failureModes:[{s:`Stuck Init:0/1`,f:`An init container is failing or waiting (e.g. for a dependency). Check its logs.`},{s:`Job never completes`,f:`A non-native sidecar keeps running. Switch to a native sidecar.`}],
+  related:["pod","job","probes"],
+  yaml:`spec:\n  initContainers:\n    - name: wait-db\n      image: busybox\n      command: ['sh','-c','until nc -z db 5432; do sleep 1; done']\n  containers:\n    - name: app\n      image: app`,
+  cmds:["kubectl describe pod web","kubectl logs web -c wait-db"],
+  check:{q:`An init container exits with code 1. Then…`,opts:[`the app container starts anyway`,`the pod restarts and re-runs init containers`,`it's ignored`,`the Deployment rolls back`],a:1,expl:`All init containers must exit 0, in order, before app containers run.`}},
+ {id:"taints",belt:"blue",name:"Taints & Tolerations",kind:"scheduling",
+  tldr:`A taint on a node repels pods; a matching toleration on a pod lets it ignore that taint. Together they reserve nodes for specific workloads.`,
+  analogy:`A taint is a 'staff only' sign on a node. Ordinary pods stay away; a pod with the matching toleration is staff who may enter — but isn't forced to.`,
+  why:`Keep general workloads off special nodes (GPU, control-plane) and let node problems auto-evict pods.`,
+  gotchas:[`A toleration <b>permits</b> scheduling; it does not <b>attract</b>. Pair with nodeAffinity to pull pods in.`,`effect matters: NoSchedule (block new), PreferNoSchedule (soft), NoExecute (also evict running).`,`Control-plane nodes are tainted by default — that's why your app pods avoid them.`],
+  underHood:`The scheduler's Filter phase drops nodes whose taints aren't tolerated. NoExecute additionally makes the node controller evict already-running intolerant pods after tolerationSeconds.`,
+  failureModes:[{s:`Won't land on GPU node`,f:`Node tainted but pod lacks the toleration (and/or affinity).`},{s:`Evicted on NotReady`,f:`Built-in NoExecute taint; tune tolerationSeconds.`}],
+  related:["scheduler","affinity","daemonset"],
+  yaml:`# node:\nkubectl taint nodes gpu-1 gpu=true:NoSchedule\n# pod:\ntolerations:\n  - key: gpu\n    operator: Equal\n    value: \"true\"\n    effect: NoSchedule`,
+  cmds:["kubectl taint nodes worker-c gpu=true:NoSchedule","kubectl describe node worker-c"],
+  check:{q:`A pod tolerates a node's taint. Will it be scheduled there?`,opts:[`yes, always`,`allowed but not attracted — needs affinity to be pulled in`,`no, tolerations block scheduling`,`only if it's a DaemonSet`],a:1,expl:`Tolerations remove repulsion; they don't create attraction.`}},
+ {id:"affinity",belt:"blue",name:"Affinity & Anti-Affinity",kind:"scheduling",
+  tldr:`Affinity attracts or repels pods relative to nodes (nodeAffinity) or to other pods (pod affinity/anti-affinity), as hard requirements or soft preferences.`,
+  analogy:`Node affinity is 'seat me by a window' (a node with SSDs). Pod anti-affinity is 'don't seat my replicas at one table' — spread them so a single failure isn't a total outage.`,
+  why:`Co-locate chatty pods, spread replicas for HA, and pin workloads to specific hardware.`,
+  gotchas:[`required… = hard (Pending if unmet); preferred… = soft (best effort).`,`<b>topologyKey</b> defines the failure domain (hostname, zone). Wrong key = 'spread' does nothing.`,`Heavy anti-affinity is expensive to schedule; consider topologySpreadConstraints.`],
+  underHood:`Evaluated in the scheduler: required rules are Filter predicates; preferred rules add Score weight. topologyKey groups nodes into domains for the (anti-)affinity match.`,
+  failureModes:[{s:`Replicas all on one node`,f:`Missing anti-affinity or wrong topologyKey.`},{s:`Pending with required affinity`,f:`No node satisfies the hard rule.`}],
+  related:["taints","scheduler","pdb"],
+  yaml:`affinity:\n  podAntiAffinity:\n    requiredDuringSchedulingIgnoredDuringExecution:\n      - labelSelector:\n          matchLabels: {app: web}\n        topologyKey: kubernetes.io/hostname`,
+  cmds:["kubectl get pods -o wide"],
+  check:{q:`Each replica on a different node for HA — use…`,opts:[`nodeSelector`,`pod anti-affinity with topologyKey hostname`,`a taint`,`more replicas alone`],a:1,expl:`Anti-affinity on the hostname topology spreads replicas across nodes.`}},
+ {id:"netpol",belt:"orange",name:"NetworkPolicy",kind:"networking",
+  tldr:`A NetworkPolicy is a pod-level firewall: it selects pods and allow-lists their ingress/egress. All pod traffic is open by default until a policy selects them.`,
+  analogy:`A guest list for a pod. With no list, anyone walks in (default-allow). Post a list and only named guests get in — everyone else is turned away.`,
+  why:`Zero-trust segmentation: stop a compromised pod from reaching the database or the internet.`,
+  gotchas:[`Selecting a pod with ANY policy flips it to <b>default-deny</b> for that direction — easy to accidentally cut traffic.`,`It needs a CNI that enforces policy (Calico, Cilium); some CNIs silently ignore the object.`,`Policies are additive <b>allow</b> rules — there is no deny rule; you restrict by narrowing what's allowed.`],
+  underHood:`The CNI watches NetworkPolicies and programs per-pod firewall rules (eBPF or iptables) on the node. Peers are matched by podSelector / namespaceSelector / ipBlock.`,
+  failureModes:[{s:`App can't reach the DB`,f:`A new policy selected the pod → default-deny. Add an explicit allow.`},{s:`Policy has no effect`,f:`The CNI doesn't enforce NetworkPolicy.`}],
+  related:["service","namespace","pod"],
+  yaml:`apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata: {name: db-allow-web}\nspec:\n  podSelector: {matchLabels: {app: db}}\n  policyTypes: [Ingress]\n  ingress:\n    - from:\n        - podSelector: {matchLabels: {app: web}}`,
+  cmds:["kubectl get networkpolicy"],
+  check:{q:`Before any NetworkPolicy exists, pod-to-pod traffic is…`,opts:[`denied`,`allowed (default-allow)`,`encrypted`,`blocked across namespaces only`],a:1,expl:`Networking is default-open until a policy selects the pod.`}},
+ {id:"pdb",belt:"brown",name:"PodDisruptionBudget",kind:"availability",
+  tldr:`A PDB caps how many pods of an app can be voluntarily disrupted at once (drains, upgrades), protecting availability during maintenance.`,
+  analogy:`A minimum-staffing rule. During a fire drill (node drain) the floor can't be emptied below, say, 2 people — evacuation waits until it's safe.`,
+  why:`Cluster operations (drain, autoscaler scale-down, rollouts) must not take down more replicas than the app can spare.`,
+  gotchas:[`PDBs only guard <b>voluntary</b> disruptions (the eviction API) — not a node crashing.`,`minAvailable == replicas can <b>block drains entirely</b> — a classic cluster-upgrade snag.`,`The selector must match the app's pods, and you need >1 replica for it to help.`],
+  underHood:`The eviction API checks the PDB before deleting a pod; if eviction would breach the budget it returns 429, and the drain retries/blocks until enough pods are healthy again.`,
+  failureModes:[{s:`kubectl drain hangs`,f:`PDB won't allow more evictions (minAvailable too strict).`},{s:`PDB does nothing`,f:`Single replica, or selector doesn't match.`}],
+  related:["deployment","affinity","kubelet"],
+  yaml:`apiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata: {name: web}\nspec:\n  minAvailable: 2\n  selector:\n    matchLabels: {app: web}`,
+  cmds:["kubectl get pdb","kubectl drain worker-c --ignore-daemonsets"],
+  check:{q:`A PDB protects your app against…`,opts:[`a node hardware crash`,`voluntary disruptions like drains and upgrades`,`bad images`,`OOM kills`],a:1,expl:`PDBs guard voluntary disruptions only, not involuntary failures.`}},
+ {id:"quota",belt:"brown",name:"ResourceQuota & LimitRange",kind:"governance",
+  tldr:`A ResourceQuota caps total resource use per namespace; a LimitRange sets per-pod/container defaults and min/max.`,
+  analogy:`ResourceQuota is the team's monthly budget; LimitRange is the per-purchase rule ('nothing over $500, and unpriced items default to $50').`,
+  why:`Stop one namespace from starving the cluster, and ensure every pod has sane requests/limits even when authors forget.`,
+  gotchas:[`With a CPU/memory ResourceQuota, every pod <b>must</b> set requests/limits or it's rejected — a LimitRange's defaults save you.`,`Quota counts requests AND limits separately; hitting either blocks new pods.`,`LimitRange defaults apply only at admission — existing pods are unchanged.`],
+  underHood:`Both are admission controllers. LimitRange (mutating) injects defaults; ResourceQuota (validating) rejects the create if the namespace total would exceed the cap.`,
+  failureModes:[{s:`'must specify limits'`,f:`Quota requires them; add a LimitRange with defaults.`},{s:`exceeded quota`,f:`Namespace at its cap; raise quota or free resources.`}],
+  related:["resources","namespace","admission"],
+  yaml:`apiVersion: v1\nkind: ResourceQuota\nmetadata: {name: team-a}\nspec:\n  hard:\n    requests.cpu: \"4\"\n    requests.memory: 8Gi\n    pods: \"20\"`,
+  cmds:["kubectl get resourcequota","kubectl describe quota"],
+  check:{q:`A namespace has a CPU ResourceQuota. A pod with no requests is…`,opts:[`given 1 CPU automatically`,`rejected at admission (unless a LimitRange sets defaults)`,`scheduled as BestEffort`,`throttled`],a:1,expl:`Quota forces requests/limits; LimitRange can supply defaults.`}},
+ {id:"serviceaccount",belt:"black",name:"ServiceAccounts",kind:"identity",
+  tldr:`A ServiceAccount is the identity a pod uses to talk to the Kubernetes API. RBAC bindings grant it permissions; its token is projected into the pod.`,
+  analogy:`An employee badge for software. A human logs in as a User; a pod 'logs in' as its ServiceAccount, and RBAC decides which doors the badge opens.`,
+  why:`Workloads need authenticated, least-privilege API access without hardcoding human credentials.`,
+  gotchas:[`Every pod uses the namespace's <b>default</b> SA unless set — and its token is auto-mounted even if unused.`,`Never bind cluster-admin to a SA; scope Roles tightly.`,`Modern tokens are short-lived, audience-bound projected tokens — not the old never-expiring secrets.`],
+  underHood:`The SA token is a signed JWT projected at /var/run/secrets/.../token. The API server validates it (authn), then RBAC (authz) decides access. TokenRequest issues expiring, pod-bound tokens.`,
+  failureModes:[{s:`Pod gets 403 from API`,f:`Its SA has no RoleBinding granting the action.`},{s:`Token = cluster access`,f:`Over-broad RBAC + auto-mount. Set automountServiceAccountToken: false when unused.`}],
+  related:["rbac","secret","pod"],
+  yaml:`apiVersion: v1\nkind: ServiceAccount\nmetadata: {name: ci-deployer, namespace: team-a}\nautomountServiceAccountToken: false\n---\nspec:\n  serviceAccountName: ci-deployer`,
+  cmds:["kubectl get serviceaccount","kubectl auth can-i list pods --as=system:serviceaccount:team-a:ci-deployer"],
+  check:{q:`How does a pod authenticate to the Kubernetes API?`,opts:[`with the node's kubelet cert`,`with its ServiceAccount's projected token`,`anonymously`,`with the user's kubeconfig`],a:1,expl:`The SA token identifies the pod; RBAC then authorizes it.`}},
+ {id:"admission",belt:"black",name:"Admission Control",kind:"extensibility",
+  tldr:`Admission controllers intercept API requests after authn/authz but before persistence — mutating ones edit objects, validating ones accept or reject them.`,
+  analogy:`Customs after passport control. You're allowed in, but customs can still stamp your bags (mutate — inject a sidecar) or refuse entry (validate — reject a privileged pod).`,
+  why:`Enforce org policy at the source: inject sidecars, set defaults, block insecure specs, require labels — cluster-wide, before anything is stored.`,
+  gotchas:[`A broken/slow webhook in the path can block <b>all</b> matching writes cluster-wide — set failurePolicy and timeouts carefully.`,`Mutating webhooks run before validating ones; order and idempotency matter.`,`This is how meshes auto-inject sidecars and how policy engines (OPA/Kyverno) enforce rules.`],
+  underHood:`The API server runs built-in controllers, then MutatingWebhookConfigurations, re-validates the schema, then ValidatingWebhookConfigurations, before writing to etcd. Webhooks match by rules on group/version/resource.`,
+  failureModes:[{s:`All creates fail`,f:`A validating webhook with failurePolicy: Fail is down.`},{s:`Sidecar not injected`,f:`Namespace/pod not selected by the mutating webhook.`}],
+  related:["apiserver","rbac","operator","quota"],
+  yaml:`# ValidatingWebhookConfiguration (sketch)\nwebhooks:\n  - name: policy.example.com\n    rules:\n      - operations: [CREATE]\n        resources: [pods]\n    failurePolicy: Fail\n    clientConfig:\n      service: {name: policy, namespace: kube-system}`,
+  cmds:["kubectl get validatingwebhookconfigurations","kubectl explain admission"],
+  check:{q:`A mutating admission webhook can…`,opts:[`only reject requests`,`modify the object before it's stored (e.g. inject a sidecar)`,`run after the object is saved`,`change etcd directly`],a:1,expl:`Mutating webhooks edit the incoming object pre-persistence; validating ones only accept/reject.`}},
+];
+C.forEach(function(c){ if(CX[c.id]) Object.assign(c,CX[c.id]); });
+NEW_CONCEPTS.forEach(function(c){ C.push(c); });
+
 /* ============================ TRIALS ============================ */
 const TRIALS=[
 {kind:"concept",q:"You run <code>kubectl delete pod web-abc</code> on a pod owned by a Deployment. Seconds later a new <code>web-xyz</code> pod appears. Why?",
@@ -707,6 +929,51 @@ const TRIALS=[
  opts:["Jobs need three replicas minimum","<code>restartPolicy: Always</code> is invalid for Jobs — use OnFailure or Never","The image tag is missing","Jobs can't run containers, only CronJobs can"],
  a:1, expl:"<code>restartPolicy: Always</code> means 'restart no matter what' — that's server behavior, and Jobs reject it. A Job needs <b>OnFailure</b> or <b>Never</b> so a successful exit actually counts as done."},
 ];
+
+/* ---- harder trials (belts blue → black) ---- */
+TRIALS.push(
+{kind:"concept",q:`A rollout is stuck: new pods are <b>CrashLoopBackOff</b>, yet users report no downtime. Why is the old version still serving?`,
+ opts:["Kubernetes serves from cache","The Deployment keeps the old ReplicaSet running until new pods pass readiness","kubectl paused traffic","It failed over to a backup cluster"],
+ a:1,expl:"Rolling updates only shift traffic to pods that pass readiness. If new pods never go Ready, the old ReplicaSet keeps serving and the rollout waits — a safety feature. Fix the pod or <code>rollout undo</code>."},
+{kind:"debug",q:`This pod is <b>Pending</b>. <code>describe</code> says: <i>0/3 nodes available: 3 node(s) had untolerated taint {gpu: true}</i>. The fix?`,
+ code:"spec:\n  containers:\n    - name: trainer\n      image: trainer\n  # tolerations: (none)",
+ opts:["Add more replicas","Add a toleration matching gpu=true:NoSchedule","Raise the memory request","Remove the image tag"],
+ a:1,expl:"The only nodes with capacity are tainted <code>gpu=true:NoSchedule</code>. A pod needs a matching <b>toleration</b> to schedule there (and usually nodeAffinity to be pulled in)."},
+{kind:"concept",q:`Your <code>/health</code> endpoint also pings the database. You wire it to the <b>liveness</b> probe. What breaks during a brief DB blip?`,
+ opts:["Nothing","Every pod restarts at once, turning a blip into an outage","The Service scales up","The DB restarts"],
+ a:1,expl:"A dependency check belongs on <b>readiness</b> (stop traffic), not <b>liveness</b> (restart). On liveness, one shared DB hiccup restarts all pods at once — a self-inflicted outage."},
+{kind:"debug",q:`After applying this NetworkPolicy, the <code>api</code> pods can no longer reach <code>db</code>. Why?`,
+ code:"kind: NetworkPolicy\nspec:\n  podSelector: {matchLabels: {app: db}}\n  policyTypes: [Ingress]\n  ingress:\n    - from:\n        - podSelector: {matchLabels: {app: web}}",
+ opts:["NetworkPolicies block all traffic","Selecting db flips it to default-deny ingress; only app=web is allowed, so app=api is dropped","It needs a LoadBalancer","db must be in another namespace"],
+ a:1,expl:"Once ANY policy selects the <code>db</code> pods, ingress becomes default-deny for them. Only the listed peer (<code>app=web</code>) is allowed — add <code>app=api</code> to the from-list."},
+{kind:"concept",q:`A ServiceAccount is bound to a <b>ClusterRole</b> via a <b>RoleBinding</b> in <code>team-a</code>. Where can it act?`,
+ opts:["Everywhere — it's a ClusterRole","Only in team-a — a RoleBinding scopes the ClusterRole to its namespace","Only in kube-system","Nowhere until a ClusterRoleBinding is added"],
+ a:1,expl:"A ClusterRole referenced by a <b>RoleBinding</b> grants its permissions only within that binding's namespace. Cluster-wide access needs a <b>ClusterRoleBinding</b>. Try it in the RBAC tab."},
+{kind:"concept",q:`A node hits memory pressure. Which pod does the kubelet evict first?`,
+ opts:["The newest pod","A BestEffort pod (no requests/limits)","A Guaranteed pod","The largest pod"],
+ a:1,expl:"Eviction follows QoS: <b>BestEffort</b> first, then <b>Burstable</b> over its request, and <b>Guaranteed</b> last. requests==limits earns Guaranteed."},
+{kind:"debug",q:`The Service selector matches, but requests time out. Spot the mismatch:`,
+ code:"kind: Service\nspec:\n  selector: {app: web}\n  ports:\n    - port: 80\n      targetPort: 80     # <—\n---\n# container\nports:\n  - containerPort: 8080  # <—",
+ opts:["port should be 8080","targetPort 80 doesn't match the container's 8080 — traffic hits a closed port","Missing a NodePort","selector is wrong"],
+ a:1,expl:"<b>port</b> is what clients hit on the Service; <b>targetPort</b> must equal the container's listening port (8080). Here it points at 80, where nothing listens."},
+{kind:"concept",q:`Why does a StatefulSet need a <b>headless</b> Service (clusterIP: None)?`,
+ opts:["For load balancing","To give each pod a stable, individually-addressable DNS name (db-0, db-1…)","To expose it externally","To enable autoscaling"],
+ a:1,expl:"A headless Service creates per-pod DNS records instead of one virtual IP, so clustered software can address specific members by stable identity."},
+{kind:"debug",q:`<code>kubectl drain worker-c</code> hangs forever. The app has 3 replicas and this PDB. Why?`,
+ code:"kind: PodDisruptionBudget\nspec:\n  minAvailable: 3       # <—\n  selector: {matchLabels: {app: web}}",
+ opts:["The node is broken","minAvailable equals the replica count, so no pod may be evicted — the drain is blocked","PDBs don't affect drains","You always need --force"],
+ a:1,expl:"<code>minAvailable: 3</code> with 3 replicas leaves zero disruption budget, so the eviction API refuses every pod. Use 2 (or maxUnavailable: 1) to allow rolling maintenance."},
+{kind:"concept",q:`Your HPA shows <code>TARGETS: &lt;unknown&gt;/70%</code> and never scales. Most likely cause?`,
+ opts:["maxReplicas too low","No metrics-server, or the pods have no CPU requests to compute utilization against","Wrong Deployment name","The cluster is too small"],
+ a:1,expl:"HPA CPU% is a fraction of the pod's <b>request</b>, read via <b>metrics-server</b>. Missing either yields &lt;unknown&gt; and no scaling."},
+{kind:"debug",q:`Every new Deployment suddenly fails with a webhook timeout, cluster-wide. What happened?`,
+ code:"# ValidatingWebhookConfiguration\nwebhooks:\n  - name: policy.example.com\n    failurePolicy: Fail    # <—\n    rules: [{operations: [CREATE], resources: [pods]}]",
+ opts:["etcd is full","The webhook's backend is down and failurePolicy is Fail, so the API server rejects all matching writes","RBAC is misconfigured","The scheduler crashed"],
+ a:1,expl:"A validating webhook sits in the write path. With <code>failurePolicy: Fail</code>, if its service is unreachable the API server blocks every matching request — here, all pod creates."},
+{kind:"concept",q:`A pod is stuck in <code>Init:0/2</code>. What does that tell you?`,
+ opts:["The app crashed","The first of two init containers hasn't completed (still running or failing)","Two replicas are pending","The image is missing"],
+ a:1,expl:"<code>Init:0/2</code> means 0 of 2 init containers have finished. They run sequentially to completion before app containers start — check the current init container's logs."}
+);
 
 /* ============================ CLUSTER STATE + RECONCILER ============================ */
 const KNOWN_IMAGES=["nginx","redis","httpd","busybox","postgres","node","python","alpine","mysql","mongo","prom/node-exporter","backup-tool","migrator","app"];
@@ -1222,8 +1489,10 @@ function runFromConcept(cmd){
 
 /* ============================ CONCEPTS UI ============================ */
 const readSet=loadProgress();
+const masterSet=loadMaster();
 function loadProgress(){try{const s=JSON.parse(localStorage.getItem("k8sdojo")||"{}");return new Set(s.read||[]);}catch(e){return new Set();}}
-function saveProgress(){try{localStorage.setItem("k8sdojo",JSON.stringify({read:[...readSet],score:trialScore,answered:[...answered]}));}catch(e){}}
+function loadMaster(){try{const s=JSON.parse(localStorage.getItem("k8sdojo")||"{}");return new Set(s.mastered||[]);}catch(e){return new Set();}}
+function saveProgress(){try{localStorage.setItem("k8sdojo",JSON.stringify({read:[...readSet],mastered:[...masterSet],score:trialScore,answered:[...answered]}));}catch(e){}}
 
 function renderConcepts(){
   const wrap=$("#belts");wrap.innerHTML="";
@@ -1261,6 +1530,31 @@ function highlightYaml(y){
     return line.replace(/^(\s*)([\w.\/-]+)(:)/,'$1<span class="kk">$2</span>$3');
   }).join("\n");
 }
+function isLabRunnable(cmd){
+  return /^kubectl (get (pods|nodes|deployments?|services?|svc|events?|all)|describe |scale |delete |run |create deployment|expose |logs |cordon |uncordon |drain |rollout |explain |auth can-i)/.test(cmd);
+}
+function buildCheck(c){
+  const wrap=el("div","check");
+  const q=el("div","cq");q.textContent=c.check.q;wrap.appendChild(q);
+  const opts=el("div","copts");
+  const ex=el("div","cexpl");ex.innerHTML=c.check.expl;
+  c.check.opts.forEach((o,i)=>{
+    const b=el("button","copt");
+    const mk=el("span","cmk",String.fromCharCode(65+i));b.appendChild(mk);
+    const sp=el("span");sp.innerHTML=o;b.appendChild(sp);
+    b.addEventListener("click",()=>{
+      if(wrap.dataset.done)return;
+      wrap.dataset.done="1";
+      Array.from(opts.children).forEach((cb,ci)=>{cb.disabled=true;if(ci===c.check.a)cb.classList.add("correct");if(ci===i&&i!==c.check.a)cb.classList.add("wrong");});
+      ex.classList.add("show");
+      if(i===c.check.a&&!masterSet.has(c.id)){masterSet.add(c.id);saveProgress();updateRank();}
+    });
+    opts.appendChild(b);
+  });
+  wrap.appendChild(opts);wrap.appendChild(ex);
+  if(masterSet.has(c.id)){const tag=el("div","cmastered","✓ mastered — answer again to review");wrap.appendChild(tag);}
+  return wrap;
+}
 function openConcept(id){
   const c=C.find(x=>x.id===id);if(!c)return;
   const b=BELTS.find(x=>x.id===c.belt);
@@ -1277,13 +1571,25 @@ function openConcept(id){
   const anB=el("div","block");const anH=el("div","h","The mental model");anB.appendChild(anH);anB.appendChild(an);sheetin.appendChild(anB);
   const whyP=el("p");whyP.textContent=c.why;mkBlock("Why it exists",whyP);
   const ul=el("ul","gotchas");c.gotchas.forEach(g=>{const li=el("li");li.innerHTML=g;ul.appendChild(li);});mkBlock("Gotchas that bite",ul);
+  if(c.underHood){const uh=el("p");uh.textContent=c.underHood;mkBlock("Under the hood",uh);}
+  if(c.failureModes&&c.failureModes.length){
+    const fm=el("div","fmodes");
+    c.failureModes.forEach(f=>{const row=el("div","fmode");row.innerHTML=`<div class="fs">${escapeHtml(f.s)}</div><div class="ff">${escapeHtml(f.f)}</div>`;fm.appendChild(row);});
+    mkBlock("Failure modes → fixes",fm);
+  }
   const pre=el("pre");pre.innerHTML=highlightYaml(c.yaml);mkBlock("Manifest",pre);
   const cm=el("div","cmds");c.cmds.forEach(cd=>{const code=el("code");code.innerHTML=escapeHtml(cd).replace(/^(\w+)/,'<b>$1</b>');cm.appendChild(code);});
   mkBlock("Practice in the lab",cm);
+  if(c.check){mkBlock("Test yourself",buildCheck(c));}
+  if(c.related&&c.related.length){
+    const rc=el("div","related");
+    c.related.forEach(rid=>{const rel=C.find(x=>x.id===rid);if(!rel)return;const chip=el("button","relchip",rel.name);chip.addEventListener("click",()=>openConcept(rid));rc.appendChild(chip);});
+    mkBlock("Connects to",rc);
+  }
   if(c.id==="rbac"){const rb=el("button","trybtn","▶ Open the can-i simulator");rb.style.marginRight="8px";rb.addEventListener("click",()=>{closeSheet();switchTab("rbac");});sheetin.appendChild(rb);}
-  if(c.cmds[0]&&!c.cmds[0].includes("--raw")){
-    const tb=el("button","trybtn",`▶ Run "${c.cmds.find(x=>!x.includes("<"))||c.cmds[0]}" in the Lab`);
-    const runnable=c.cmds.find(x=>!x.includes("<"))||c.cmds[0];
+  const runnable=(c.cmds||[]).find(x=>!x.includes("<")&&isLabRunnable(x));
+  if(runnable){
+    const tb=el("button","trybtn",`▶ Run "${runnable}" in the Lab`);
     tb.addEventListener("click",()=>{closeSheet();runFromConcept(runnable);});
     sheetin.appendChild(tb);
   }
@@ -1348,8 +1654,8 @@ function updateScore(){
 
 /* ============================ RANK ============================ */
 function updateRank(){
-  const totalItems=C.length+TRIALS.length;
-  const done=readSet.size+trialScore;
+  const totalItems=C.length+TRIALS.length+C.filter(c=>c.check).length;
+  const done=readSet.size+trialScore+masterSet.size;
   const pct=Math.round(done/totalItems*100);
   $("#progbar").style.width=pct+"%";
   const idx=Math.min(BELTS.length-1,Math.floor(pct/ (100/BELTS.length)));
